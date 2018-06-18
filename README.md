@@ -2,13 +2,13 @@
 Autor: Lluís Bosch (lbosch@icra.cat)
 
 1. Connectar gateway a port USB i executar 'listen.py'
-  '''bash
+  ```bash
     python listen.py
-  '''
+  ```
   Si el programa no troba el gateway, editar 'listen.py' per configurar el port serial correcte
-  '''python
+  ```python
     ser.port='/dev/ttyUSB0'
-  '''
+  ```
 
 2. Executar 'python info-gateway.py' per comprovar que el gateway està escoltant correctament
 
