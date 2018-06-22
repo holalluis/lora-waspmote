@@ -1,6 +1,8 @@
 # Configuració per LoRa (model waspmote SX1272: enviar i rebre dades)
 Autor: Lluís Bosch (lbosch@icra.cat)
 
+## Estat: en desenvolupament
+
 1. El gateway és l'aparell que rep les dades. Connectar gateway a port USB i executar 'escolta.py'
   ```bash
     python escolta.py
