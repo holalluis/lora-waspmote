@@ -10,6 +10,7 @@ import time
 
 #nova connexió serial
 ser=serial.Serial()
+#ser.port='COM1'                       #windows
 #ser.port='/dev/ttyUSB0'               #linux
 ser.port='/dev/tty.usbserial-AI03NPY0' #macosx
 ser.baudrate=38400

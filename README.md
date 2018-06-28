@@ -9,8 +9,9 @@ Autor: Lluís Bosch (lbosch@icra.cat)
   ```
   Si no troba el gateway, editar 'escolta.py' per configurar el port serial correcte
   ```python
-    ser.port='/dev/ttyUSB0' #exemple per linux o mac
-    ser.port='COM1'         #exemple per windows
+    ser.port='/dev/ttyUSB0'                #exemple per linux o mac
+    ser.port='COM1'                        #exemple per windows
+    ser.port='/dev/tty.usbserial-AI03NPY0' #exemple per macosx
   ```
   
   Aquest programa ha d'estar obert tota l'estona, ja que és el que mostra com es reben les dades.
