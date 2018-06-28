@@ -1,23 +1,24 @@
 #-*- coding: utf-8 -*-
 '''
-Comunicació serial amb Waspmote SX1272 (gateway)
-Continuously listen serial port and handle output
+Comunicació serial amb Waspmote SX1272 (gateway) Continuously listen serial
+port and handle output
 
 http://www.libelium.com/development/waspmote/documentation/lora-gateway-tutorial/
 '''
 import serial
-import time
+
+#local imports
+import config as c            # see 'config.py'
+import processa_missatge as p # see 'processa_missatge.py' 
 
 #nova connexió serial
-ser=serial.Serial()
-#ser.port='COM1'                       #windows
-#ser.port='/dev/ttyUSB0'               #linux
-ser.port='/dev/tty.usbserial-AI03NPY0' #macosx
-ser.baudrate=38400
-ser.bytesize=8
-ser.parity='N'
-ser.stopbits=1
-ser.timeout=1
+ser          = serial.Serial()
+ser.port     = c.port
+ser.baudrate = c.baudrate
+ser.bytesize = c.bytesize
+ser.parity   = c.parity
+ser.stopbits = c.stopbits
+ser.timeout  = c.timeout
 ser.open()
 
 #funció listen
@@ -28,9 +29,10 @@ def listen():
       lines=ser.readlines()
       if len(lines):
         rebut=''.join(str(line) for line in lines)
-        now=time.strftime("%c")
-        print(now,rebut)
-  except KeyboardInterrupt: pass # do cleanup here
+        p.processa(rebut)
+  except KeyboardInterrupt:
+    pass
   
 #listen serial port
 listen()
+

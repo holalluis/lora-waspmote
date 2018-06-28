@@ -7,14 +7,17 @@ import serial
 import threading
 import time
 
+#local imports
+import config as c # see 'config.py'
+
 #nova connexió serial
-ser=serial.Serial()
-ser.port='/dev/ttyUSB0'
-ser.baudrate=38400
-ser.bytesize=8
-ser.parity='N'
-ser.stopbits=1
-ser.timeout=1
+ser          = serial.Serial()
+ser.port     = c.port
+ser.baudrate = c.baudrate
+ser.bytesize = c.bytesize
+ser.parity   = c.parity
+ser.stopbits = c.stopbits
+ser.timeout  = c.timeout
 ser.open()
 
 #envia query al gateway
