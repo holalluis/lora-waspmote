@@ -10,7 +10,8 @@ import time
 
 #nova connexió serial
 ser=serial.Serial()
-ser.port='/dev/ttyUSB0'
+#ser.port='/dev/ttyUSB0'               #linux
+ser.port='/dev/tty.usbserial-AI03NPY0' #macosx
 ser.baudrate=38400
 ser.bytesize=8
 ser.parity='N'
@@ -28,8 +29,7 @@ def listen():
         rebut=''.join(str(line) for line in lines)
         now=time.strftime("%c")
         print(now,rebut)
-  except KeyboardInterrupt:
-    pass # do cleanup here
+  except KeyboardInterrupt: pass # do cleanup here
   
 #listen serial port
 listen()
