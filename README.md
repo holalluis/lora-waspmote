@@ -14,7 +14,7 @@ Autor: Lluís Bosch (lbosch@icra.cat)
     ser.port='/dev/tty.usbserial-AI03NPY0' #exemple per macosx
   ```
   
-  Aquest programa ha d'estar obert tota l'estona, ja que és el que mostra com es reben les dades.
+  Aquest programa està obert tota l'estona, ja que és el que mostra com el gateway rep les dades via LoRa.
 
 2. Executar 'python info-gateway.py' per comprovar que el gateway està escoltant correctament
   ```bash
