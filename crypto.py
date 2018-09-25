@@ -18,11 +18,11 @@ def decode(key, enc):
   return "".join(dec)
 
 '''tests'''
-key="lamevacntrasenya" #ha de ser 16 bytes (128 bits)
+key="lamevacntrasenya" #ha de ser 16 chars/bytes (128 bits)
 missatge_original="hola em dic lluis"
 missatge_encriptat=encode(key, missatge_original)
 missatge_desencriptat=decode(key, missatge_encriptat)
 print(key)
 print(missatge_original)
-print(missatge_encriptat) #
+print(missatge_encriptat)
 print(missatge_desencriptat)

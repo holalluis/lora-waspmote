@@ -9,7 +9,7 @@ import serial
 
 #local imports
 import config as c            # see 'config.py'
-import processa_missatge as p # see 'processa_missatge.py' 
+import processa_missatge as p # see 'processa_missatge.py'
 
 #nova connexió serial
 ser          = serial.Serial()
@@ -32,7 +32,7 @@ def listen():
         p.processa(rebut)
   except KeyboardInterrupt:
     pass
-  
+
 #listen serial port
 listen()
 

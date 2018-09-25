@@ -3,7 +3,7 @@
 import time
 
 def processa(rebut):
-  ''' 
+  '''
     handle lora message received
   '''
   now=time.strftime("%c")
