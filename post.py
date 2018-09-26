@@ -5,7 +5,7 @@ import requests
 import json
 
 #json string to sent
-data={"key":"value"};
+data={"example key":"example value"};
 
 #convert json object to string
 data=json.dumps(data);
