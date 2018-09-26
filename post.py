@@ -4,7 +4,7 @@ post a json string to a server
 import requests
 import json
 
-#json string to sent
+#json string to be sent
 data={"key":"value"};
 
 #convert json object to string
