@@ -18,9 +18,9 @@ Autor: Lluís Bosch (lbosch@icra.cat)
   +---------+
   | PC      |
   +---------+
-        ||
-     Internet
-        ||
+     ||
+   Internet
+     ||
   +----------------------------+
   | Servidor web visualització | lora.h2793818.stratoserver.net
   +----------------------------+
