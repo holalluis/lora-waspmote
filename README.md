@@ -22,7 +22,7 @@ Autor: Lluís Bosch (lbosch@icra.cat)
    Internet
      ||
   +----------------------------+
-  | Servidor web visualització | lora.h2793818.stratoserver.net
+  | Servidor web visualització | http://lora.h2793818.stratoserver.net/
   +----------------------------+
 ```
 
