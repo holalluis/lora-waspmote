@@ -4,8 +4,11 @@ post a json string to a server
 import requests
 import json
 
-#json string to sent
-data={"example key":"example value"};
+#json string to be sent
+data={
+  "camp1":"hola",
+  "camp2":"adeu",
+};
 
 #convert json object to string
 data=json.dumps(data);

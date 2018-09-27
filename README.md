@@ -8,13 +8,13 @@ Autor: Lluís Bosch (lbosch@icra.cat)
   +-------------+
   | Arduino     | (waspmote)
   +-------------+
-  | Shield LoRa |
+  | Shield LoRa | (waspmote SX_02a)
   +-------------+
      ) ) )
    Senyal LoRa
      ) ) )
   +---------+
-  | Gateway |
+  | Gateway | (waspmote SX1272)
   +---------+
   | PC      |
   +---------+
