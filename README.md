@@ -1,6 +1,31 @@
 # Configuració per LoRa (model waspmote SX1272: enviar i rebre dades)
 Autor: Lluís Bosch (lbosch@icra.cat)
 
+## Esquema muntatge
+```
+  +-------------+
+  | Sensors     | (temperatura (3), nivell (1), overflow (1))
+  +-------------+
+  | Arduino     | (waspmote)
+  +-------------+
+  | Shield LoRa |
+  +-------------+
+     ) ) )
+   Senyal LoRa
+     ) ) )
+  +---------+
+  | Gateway |
+  +---------+
+  | PC      |
+  +---------+
+        ||
+     Internet
+        ||
+  +----------------------------+
+  | Servidor web visualització | lora.h2793818.stratoserver.net
+  +----------------------------+
+```
+
 ## Estat: en desenvolupament
 1. El gateway és l'aparell que rep les dades. Connectar gateway a port USB i executar 'escolta.py'
   ```bash

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 '''
-Configura la connexió serial aquí
+Configuració connexió serial del gateway a l'ordinador on estigui connectat
 
 exemple:
   import config as c
