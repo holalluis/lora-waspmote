@@ -1,14 +1,13 @@
 #-*- coding: utf-8 -*-
 '''
-Comunicació serial amb Waspmote SX1272 (gateway)
-Continuously listen serial port and handle output
+  Comunicació serial Waspmote SX1272 (gateway)
+  http://www.libelium.com/development/waspmote/documentation/lora-gateway-tutorial/
 
-http://www.libelium.com/development/waspmote/documentation/lora-gateway-tutorial/
+  TLDR: Continuously listen serial port and handle output, i.e packets sent by lora transmitter
+
 '''
 import serial
-
-#imports locals
-import config as c            # see 'config.py'
+import config            as c # see 'config.py'
 import processa_missatge as p # see 'processa_missatge.py'
 
 #nova connexió serial
@@ -35,4 +34,3 @@ def listen():
 
 #listen serial port
 listen()
-

@@ -1,14 +1,10 @@
 #-*- coding: utf-8 -*-
 '''
-Comunicació serial amb Waspmote SX1272 (gateway)
-http://www.libelium.com/development/waspmote/documentation/lora-gateway-tutorial/
+  Comunicació serial amb Waspmote SX1272 (gateway)
+  http://www.libelium.com/development/waspmote/documentation/lora-gateway-tutorial/
 '''
 import serial
-import threading
-import time
-
-#local imports
-import config as c # see 'config.py'
+import config as c # see "config.py" (local)
 
 #nova connexió serial
 ser          = serial.Serial()

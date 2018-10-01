@@ -1,11 +1,10 @@
 /*
  * --- [SX_02a] - TX LoRa ---
- * This example shows how to configure the semtech module in LoRa
- * mode and then send packets with plain-text payloads
  * http://www.libelium.com/development/waspmote/examples/sx-02a-tx-lora/
+ *
+ * TLDR: shield lora envia un packet al gateway
+ *
  */
-
-//library to transmit with sx1272
 #include <WaspSX1272.h>
 
 //define the destination address to send packets
@@ -58,7 +57,7 @@ void setup(){
 
 void loop(){
   //send packet before timeout
-  e=sx1272.sendPacketTimeout(rx_address,"This_is_a_new_message");
+  e=sx1272.sendPacketTimeout(rx_address,"{'message':'This_is_a_new_message'}");
 
   //check sending status
   if(e==0){
