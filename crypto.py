@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+'''
+  basic crypto per enviar missatges via lora
+  per python3
+'''
 import base64
 
 def encode(key, string):
@@ -18,11 +23,11 @@ def decode(key, enc):
   return "".join(dec)
 
 '''tests'''
-key="lamevacntrasenya" #ha de ser 16 chars/bytes (128 bits)
-missatge_original="hola em dic lluis"
-missatge_encriptat=encode(key, missatge_original)
-missatge_desencriptat=decode(key, missatge_encriptat)
-print(key)
+priv_key="lamevacntrasenya"            #ha de ser obligatòriament 16 chars (128 bits)
+missatge_original="hola em dic lluis"  #missatge que vols encriptar
+missatge_encriptat=encode(priv_key,    missatge_original)
+missatge_desencriptat=decode(priv_key, missatge_encriptat)
+print(priv_key)
 print(missatge_original)
 print(missatge_encriptat)
 print(missatge_desencriptat)

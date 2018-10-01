@@ -1,32 +1,33 @@
+### Estat: en desenvolupament
+
 # Configuració per LoRa (model waspmote SX1272: enviar i rebre dades)
 Autor: Lluís Bosch (lbosch@icra.cat)
 
 ## Esquema muntatge
 ```
- |  +-------------+
- |  | Sensors     | (temperatura 3:[submergit, aire, cso], nivell 1:[maxbotix], overflow 1:["sabata microcom 'capacitiu'"] )
- |  +-------------+
- |  | Arduino     | (waspmote)
- |  +-------------+
- |  | Shield LoRa | (waspmote SX_02a)
- V  +-------------+
- |     ) ) )
- |   Senyal LoRa    (json string) "{'id_sensor':int, 'datetime':string, 'temperatura1':float, 'temperatura2':float, 'temperatura3':float, 'nivell':float, 'overflow':bool}"
- |     ) ) )
- |  +---------+
- |  | Gateway |     (waspmote SX1272)
- |  +---------+
- |  | PC      |     (raspberry pi amb python3 i connectada a internet per cable)
- V  +---------+
- |     ||
- |   Internet
- |     ||
- |  +----------------------------+
- |  | Servidor web visualització | http://lora.h2793818.stratoserver.net/ (mysql)
- V  +----------------------------+
+  |  +-------------+
+  |  | Sensors     | (temperatura 3:[submergit, aire, cso], nivell 1:[maxbotix], overflow 1:["sabata microcom 'capacitiu'"] )
+  |  +-------------+
+  |  | Arduino     | (waspmote)
+  |  +-------------+
+  |  | Shield LoRa | (waspmote SX_02a)
+  V  +-------------+
+  |     ) ) )
+  |   Senyal LoRa    (json string) "{'id_sensor':int, 'datetime':string, 'temperatura1':float, 'temperatura2':float, 'temperatura3':float, 'nivell':float, 'overflow':bool}"
+  |     ) ) )
+  |  +---------+
+  |  | Gateway |     (waspmote SX1272)
+  |  +---------+
+  |  | PC      |     (raspberry pi amb python3 i connectada a internet per cable)
+  V  +---------+
+  |     ||
+  |   Internet
+  |     ||
+  |  +----------------------------+
+  |  | Servidor web visualització | http://lora.h2793818.stratoserver.net/ (mysql)
+  V  +----------------------------+
 ```
 
-## Estat: en desenvolupament
 1. El gateway és l'aparell que rep les dades dels sensors. Connectar gateway a port USB i executar 'escolta.py'
   ```bash
     python escolta.py
