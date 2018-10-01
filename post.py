@@ -5,10 +5,10 @@ import requests
 import json
 
 def post(rebut):
-  #convert the input json object to string
+  #convert input: from json object to string
   rebut=json.dumps(rebut);
 
-  #do the request
+  #do request
   print("Posting data...");
   r=requests.post('http://lora.h2793818.stratoserver.net/post.php',{'data':rebut});
 
@@ -19,6 +19,7 @@ def post(rebut):
   
 #test
 #json string rebut del gateway
+'''
 rebut={
   "id_sensor":1,
   "datetime":"2018-09-01 00:00",
@@ -29,3 +30,4 @@ rebut={
   "overflow":0,
 };
 post(rebut)
+'''

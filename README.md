@@ -65,4 +65,5 @@ Si tot ha anat bé, s'ha de veure a la pantalla com el gateway rep les dades que
 
 ```bash
 ('Mon Jun 18 13:18:18 2018', 'This_is_a_new_message\r\n')
+('Mon Jun 18 14:19:59 2018', '{json-string-with-data-structure}\r\n')
 ```
