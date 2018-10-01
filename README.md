@@ -1,6 +1,6 @@
 ### Estat: en desenvolupament
 
-# Configuració per LoRa (model waspmote SX1272: enviar i rebre dades)
+# LoRa waspmote SX1272: enviar i rebre dades
 Autor: Lluís Bosch (lbosch@icra.cat)
 
 ## Esquema muntatge
