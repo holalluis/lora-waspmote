@@ -7,30 +7,30 @@ Lluís Bosch (lbosch@icra.cat)
 ```
   ·  +-------------+
   ·  | Sensors     | (temperatura 3:[submergit, aire, cso], nivell 1:[maxbotix], overflow 1:["sabata microcom 'capacitiu'"] )
-  ·  +-------------+
+  ·  |-------------|
   ·  | Arduino     | (waspmote)
-  ·  +-------------+
+  ·  |-------------|
   ·  | Shield LoRa | (waspmote SX_02a)
   V  +-------------+
   ·     ) ) )
-  ·   Senyal LoRa    (json string) "{'id_sensor':int, 'datetime':string, 'temperatura1':float, 'temperatura2':float, 'temperatura3':float, 'nivell':float, 'overflow':bool}"
+  ·   Senyal LoRa (json string) "{'id_sensor':int, 'datetime':string, 'temperatura1':float, 'temperatura2':float, 'temperatura3':float, 'nivell':float, 'overflow':bool}"
   ·     ) ) )
   ·  +---------+
-  ·  | Gateway |     (waspmote SX1272)
-  ·  +---------+
-  ·  | PC      |     (raspberry pi amb python3 i connectada a internet per cable)
+  ·  | Gateway | (waspmote SX1272)
+  ·  |---------|
+  ·  | PC      | (raspberry pi amb python3 i connectada a internet per cable)
   V  +---------+
   ·     ||
   ·   Internet
   ·     ||
   ·  +----------------------------+
-  ·  | Servidor web visualització | http://lora.h2793818.stratoserver.net/ (mysql)
+  ·  | Servidor web visualització | (mysql http://lora.h2793818.stratoserver.net/)
   V  +----------------------------+
   ·     ||
   ·   Internet
   ·     ||
   ·  +-----------------+
-  ·  | Client (usuari) | (Browser: Chrome, Firefox, Safari, Edge...)
+  ·  | Client (usuari) | (browser: chrome, firefox, safari, edge...)
   V  +-----------------+
 ```
 
