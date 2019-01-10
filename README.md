@@ -10,15 +10,15 @@ Lluís Bosch (lbosch@icra.cat)
   ·  |-------------|
   ·  | Arduino     | (waspmote)
   ·  |-------------|
-  ·  | Shield LoRa | (waspmote SX_02a)
+  ·  | Shield LoRa | (conté un waspmote SX1272)
   V  +-------------+
   ·     ) ) )
-  ·   Senyal LoRa (json string) "{'id_sensor':int, 'datetime':string, 'temperatura1':float, 'temperatura2':float, 'temperatura3':float, 'nivell':float, 'overflow':bool}"
+  ·   Senyal LoRa (json string) "{'id_sensor':int, 'datetime':string, 'temperatura1':float, 'temperatura2':float, 'temperatura3':float, 'nivell':float, 'overflow':bool, 'bateria':%}"
   ·     ) ) )
   ·  +---------+
-  ·  | Gateway | (waspmote SX1272)
+  ·  | Gateway | (conté un waspmote SX1272)
   ·  |---------|
-  ·  | PC      | (raspberry pi amb python3 i connectada a internet per cable)
+  ·  | PC      | (raspberry pi amb python3 amb internet)
   V  +---------+
   ·     ||
   ·   Internet
@@ -34,6 +34,21 @@ Lluís Bosch (lbosch@icra.cat)
   V  +-----------------+
 ```
 
+## Sensors (reunio felix hill + lluis bosch 22/2/2018 (sant sadurni))
+  - Sabata (capacitiu, microcom):
+    mesura si hi ha aigua tocant al sensor.
+    no hi ha llibreria (es llegeix on/off amb una comanda digitalRead de waspmote)
+  - Nivell: maxbotix.
+    Envia caràcters ascii per exemple "12 " en cm
+    Serial.read()
+  - Temperatura (DS18B20):
+    la llibreria ja està inclosa al waspmote (DallasTemperature.h)
+
+## notes
+  - pendent: mirar com llegir bateria de l'arduino
+  - tenir en compte que la freqüència de lectura s'ha de poder modificar remotament
+
+## Passos
 1. El gateway és l'aparell que rep les dades dels sensors. Connectar gateway a port USB i executar 'escolta.py'
   ```bash
     python escolta.py
