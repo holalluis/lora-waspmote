@@ -1,37 +1,38 @@
+## Enviament de dades via LoRa waspmote SX1272
+Lluís Bosch (lbosch@icra.cat), projecte GESTOR, icra.
 ### Estat: en desenvolupament
-
-# LoRa waspmote SX1272: enviar i rebre dades
-Lluís Bosch (lbosch@icra.cat)
 
 ## Esquema muntatge
 ```
-  ·  +-------------+
-  ·  | Sensors     | (temperatura 3:[submergit, aire, cso], nivell 1:[maxbotix], overflow 1:["sabata microcom 'capacitiu'"] )
-  ·  |-------------|
-  ·  | Arduino     | (waspmote)
-  ·  |-------------|
-  ·  | Shield LoRa | (conté un waspmote SX1272)
-  V  +-------------+
-  ·     ) ) )
-  ·   Senyal LoRa (json string) "{'id_sensor':int, 'datetime':string, 'temperatura1':float, 'temperatura2':float, 'temperatura3':float, 'nivell':float, 'overflow':bool, 'bateria':%}"
-  ·     ) ) )
-  ·  +---------+
-  ·  | Gateway | (conté un waspmote SX1272)
-  ·  |---------|
-  ·  | PC      | (raspberry pi amb python3 amb internet)
-  V  +---------+
-  ·     ||
-  ·   Internet
-  ·     ||
-  ·  +----------------------------+
-  ·  | Servidor web visualització | (mysql http://lora.h2793818.stratoserver.net/)
-  V  +----------------------------+
-  ·     ||
-  ·   Internet
-  ·     ||
-  ·  +-----------------+
-  ·  | Client (usuari) | (browser: chrome, firefox, safari, edge...)
-  V  +-----------------+
+  +-------------+
+  | Sensors     | (3 de temperatura:[submergit, aire, cso], nivell 1:[maxbotix], overflow 1:["sabata microcom 'capacitiu'"] )
+  |-------------|
+  | Arduino     | (model waspmote de libelium)
+  |-------------|
+  | sx1272      | (mòdul que envia dades via LoRa)
+  +-------------+
+     ) ) )
+   Senyal LoRa (json string) "{'id_sensor':int, 'datetime':string, 'temperatura1':float, 'temperatura2':float, 'temperatura3':float, 'nivell':float, 'overflow':bool, 'bateria':%}"
+     ) ) )
+  +---------+
+  | sx1272  | (mòdul que rep dades via LoRa)
+  +---------+
+  | Gateway | (envia el que rep de LoRa cap al PC vis USB)
+  |---------|
+  | PC      | (raspberry pi amb python3 amb internet)
+  +---------+
+     ||
+   Internet
+     ||
+  +----------------------------------------+
+  | Servidor base de dades + visualització | (mysql http://lora.h2793818.stratoserver.net/)
+  +----------------------------------------+
+     ||
+   Internet
+     ||
+  +-----------------+
+  | Client (usuari) | (browser: chrome, firefox, safari, edge...)
+  +-----------------+
 ```
 
 ## Sensors (reunio felix hill + lluis bosch 22/2/2018 (sant sadurni))
