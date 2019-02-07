@@ -1,26 +1,32 @@
 /*
  * --- [SX_02a] - TX LoRa ---
  * http://www.libelium.com/development/waspmote/examples/sx-02a-tx-lora/
- *
- * TLDR: shield lora envia un packet al gateway
- *
+ * shield lora envia un paquet encriptat al gateway
  */
 #include <WaspSX1272.h>
+#include <WaspAES.h>
 
-//define the destination address to send packets
+//destination address to send packets
 uint8_t rx_address=1;
+
+//private a 16-Byte key to encrypt message  
+char password[] = "libeliumlibelium"; 
+
+//original message on which the algorithm will be applied 
+char message[] = "Hello, this is a test";
 
 //status variable
 int8_t e;
 
+//encrypted message 
+uint8_t encrypted_message[300]; 
+
+//encrypted message's length
+uint16_t encrypted_length;
+
 void setup(){
-  //init USB port
   USB.ON();
-
-  //init sx1272 module
   sx1272.ON();
-
-  //select frequency channel
   e=sx1272.setChannel(CH_12_868);
   USB.print(F("Setting Channel.\t state "));
   USB.println(e);
@@ -56,18 +62,43 @@ void setup(){
 }
 
 void loop(){
-  //send packet before timeout
-  e=sx1272.sendPacketTimeout(rx_address,"{'message':'This_is_a_new_message'}");
 
-  //check sending status
-  if(e==0){
-    USB.println(F("Packet sent OK"));
-  }else{
-    USB.println(F("Error sending the packet"));
+  //encrypt message
+  USB.print(F("Original message:"));
+  USB.println(message);
+
+  //calculate length in Bytes of the encrypted message 
+  encrypted_length = AES.sizeOfBlocks(message);
+
+  //calculate encrypted message with ECB cipher mode and PKCS5 padding. 
+  AES.encrypt(  AES_128
+    , password
+    , message
+    , encrypted_message
+    , ECB
+    , PKCS5); 
+
+  //printing encrypted message    
+  USB.print(F("Encrypted message:")); 
+  AES.printMessage(encrypted_message, encrypted_length); 
+
+  //printing encrypted message's length 
+  USB.print(F("Encrypted length:")); 
+  USB.println( (int)encrypted_length);
+
+  //sending packet before ending a timeout and waiting for an ACK response  
+  e=sx1272.sendPacketTimeoutACK(rx_address, encrypted_message, encrypted_length);
+  
+  // 2.2. Check sending status
+  if(e==0) {
+    USB.println(F("--> Packet sent OK"));     
+  } else {
+    USB.println(F("--> Error sending the packet"));  
     USB.print(F("state: "));
     USB.println(e, DEC);
-  }
+  } 
 
-  //loop end
-  delay(2500);
+  USB.println();
+  delay(2000);
 }
+

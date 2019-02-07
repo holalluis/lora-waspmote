@@ -19,6 +19,7 @@ ser.parity   = c.parity
 ser.stopbits = c.stopbits
 ser.timeout  = c.timeout
 ser.open()
+ser.flush()
 
 #funció listen
 def listen():
@@ -27,8 +28,11 @@ def listen():
     while True:
       lines=ser.readlines()
       if len(lines):
-        rebut=''.join(str(line) for line in lines)
-        p.processa(rebut)
+        rebut=lines[0];
+        try:
+          p.processa(rebut)
+        except Exception as e:
+          print(e);
   except KeyboardInterrupt:
     pass
 
