@@ -5,18 +5,29 @@
     Sensor distància ultrasons maxbotix
   I envia les lectures via:
     LoRa SX1272 (libelium)
-*/
-#include <WaspSX1272.h>
-#include <WaspAES.h>
 
+  TODO: enlloc de fer una sola lectura, fes-ne 15-20 i fes la mitjana
+  TODO: poder configurar el time interval
+*/
+
+//biblioteques
+#include<WaspSX1272.h>
+#include<WaspAES.h>
+
+//constants
 #define WASPMOTE_ID 1               /*id of waspmote*/
 #define DEBUG true                  /*usb debugging*/
 #define PASSWORD "libeliumlibelium" /*private a 16-Byte key to encrypt message*/
 #define PIN_MICROCOM DIGITAL1       /*pin microcom*/
 #define RX_ADDRESS 1                /*destination address to send packets*/
 #define TIMEOUT 1000                /*maxbotix timeout serial read*/
+#define MSG_LENGTH 200              /*tamany max missatge json*/
 
-/*SETUP*/
+//prototips funcions
+int readSensorSerial();
+void construct_json_message(char *message, float temp1, float temp2, float temp3, bool cso_detected, int distance);
+void lora_send_message(char * message);
+
 void setup(){
   //inicia USB i mostra id waspmote
   if(DEBUG){
@@ -32,64 +43,55 @@ void setup(){
   //configura microcom capacitiu detector cso
   pinMode(PIN_MICROCOM,INPUT);
 
-  //configura lectura maxbotix
+  //configura maxbotix sensor distància
   Utils.setMuxAux1();
   beginSerial(9600,1);
 
-  //configura lora
+  //configura lora enviament dades
   sx1272.ON();
   int8_t e;//estat configuració
-  e=sx1272.setChannel(CH_12_868); if(DEBUG){ USB.print("set channel: ");      USB.println(e);}
-  e=sx1272.setHeaderON();         if(DEBUG){ USB.print("set header on: ");    USB.println(e);}
-  e=sx1272.setMode(1);            if(DEBUG){ USB.print("set mode 1: ");       USB.println(e);}
-  e=sx1272.setCRC_ON();           if(DEBUG){ USB.print("set crc on: ");       USB.println(e);}
-  e=sx1272.setPower('L');         if(DEBUG){ USB.print("set power: ");        USB.println(e);}
-  e=sx1272.setNodeAddress(2);     if(DEBUG){ USB.print("set node address: "); USB.println(e);}
-
-  //setup end
+  e=sx1272.setChannel(CH_12_868); if(DEBUG){USB.print("set channel: ");     USB.println(e);}
+  e=sx1272.setHeaderON();         if(DEBUG){USB.print("set header on: ");   USB.println(e);}
+  e=sx1272.setMode(1);            if(DEBUG){USB.print("set mode 1: ");      USB.println(e);}
+  e=sx1272.setCRC_ON();           if(DEBUG){USB.print("set crc on: ");      USB.println(e);}
+  e=sx1272.setPower('L');         if(DEBUG){USB.print("set power: ");       USB.println(e);}
+  e=sx1272.setNodeAddress(2);     if(DEBUG){USB.print("set node address: ");USB.println(e);}
   delay(1000);
 }
 
-/*LOOP*/
 void loop(){
-  //reading DS1820 temperature connected to DIGITAL{4,6,8} pins
-  if(DEBUG){ USB.println("Reading temperature (ºC)...");}
-  float temp1 = Utils.readTempDS1820(DIGITAL4); //ºC
-  float temp2 = Utils.readTempDS1820(DIGITAL6); //ºC
-  float temp3 = Utils.readTempDS1820(DIGITAL8); //ºC
-  if(DEBUG){ 
-    USB.println(temp1);
-    USB.println(temp2);
-    USB.println(temp3);
-  }
+  if(DEBUG) USB.println("Loop start");
+
+  //reading DS1820 temperature (ºC) connected to DIGITAL{4,6,8} pins
+  if(DEBUG) USB.println("Reading temperature (ºC)...");
+  float temp1 = Utils.readTempDS1820(DIGITAL4); if(DEBUG) USB.println(temp1);
+  float temp2 = Utils.readTempDS1820(DIGITAL6); if(DEBUG) USB.println(temp2);
+  float temp3 = Utils.readTempDS1820(DIGITAL8); if(DEBUG) USB.println(temp3);
  
   //read microcom overflow detector
-  if(DEBUG){ USB.println("Reading cso overflows (0/1)..."); }
-  bool cso_detected = digitalRead(PIN_MICROCOM); //true/false
-  cso_detected = 1;
-  if(DEBUG){ USB.println(cso_detected); }
+  if(DEBUG) USB.println("Reading cso overflows (0/1)...");
+  bool cso_detected = digitalRead(PIN_MICROCOM); //true/false overflow
+  if(DEBUG) USB.println(cso_detected);
 
   //read maxbotix distance sensor
-  if(DEBUG){ USB.println("Reading distance (cm)..."); }
+  if(DEBUG) USB.println("Reading distance (cm)...");
   int distance = readSensorSerial();
-  if(DEBUG){ USB.println(distance); }
+  if(DEBUG) USB.println(distance);
 
   //construeix json string missatge
-  char message[200];
+  char message[MSG_LENGTH];
   construct_json_message(message, temp1, temp2, temp3, cso_detected, distance);
 
   //envia el missatge via lora
   lora_send_message(message);
 
   if(DEBUG) USB.println(F("=================================================="));
-
   delay(2000);
 }
 
 //read maxbotix distance sensor
 int readSensorSerial() {
-  int len=4; //length of reading is 4: "R000"
-  char buffer[len+1]; //allocate 5 bytes of memory for "R000\0"
+  char buffer[5]; //5 bytes for "R000\0"
   serialFlush(1);
 
   //wait for incoming 'R' character or timeout
@@ -99,17 +101,17 @@ int readSensorSerial() {
   }
 
   //read the range
-  for(int i=0; i<len; i++){
+  for(int i=0; i<4; i++){
     while(!serialAvailable(1)){
       if(millis()-timeout > TIMEOUT) break;
     }
     buffer[i]=serialRead(1);
   }
-  buffer[len]='\0'; //add string terminating character
+  buffer[4]='\0'; //add string terminating character
   return atoi(buffer);
 }
 
-//construeix json string missatge
+//construct json string message
 void construct_json_message( char *message,
   float temp1, float temp2, float temp3, bool cso_detected, int distance){
   //use dtostrf() to convert from float to string:
@@ -120,13 +122,13 @@ void construct_json_message( char *message,
   char t3[10]; dtostrf(temp3,1,3,t3);
 
   //estructura json: {waspmote_id,temp1,temp2,temp3,cso_detected,distance}
-  snprintf( message, 200,
+  snprintf( message, MSG_LENGTH,
     "{waspmote_id:%d, t1:%s, t2:%s, t3:%s, cso_detected:%d, distance:%d}", 
     WASPMOTE_ID, t1, t2, t3, cso_detected, distance
   );
 }
 
-//send json encrypted message via lora
+//encrypt and send message via lora
 void lora_send_message(char * message){
   //encrypt message
   if(DEBUG){
