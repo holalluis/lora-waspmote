@@ -1,68 +1,59 @@
 /*
- * --- [SX_02a] - TX LoRa ---
- * http://www.libelium.com/development/waspmote/examples/sx-02a-tx-lora/
- * shield lora envia un paquet encriptat al gateway
- */
+  Waspmote
+  Sensors temperatura (3 DS1820)
+  Sensor overflow (cso) capacitiu miocrocom
+  Sensor distància ultrasons maxbotix
+  LoRa SX1272
+*/
 #include <WaspSX1272.h>
 #include <WaspAES.h>
 
-//destination address to send packets
-uint8_t rx_address=1;
+#define PIN_MICROCOM DIGITAL1       /*pin microcom*/
+#define RX_ADDRESS 1                /*destination address to send packets*/
+#define PASSWORD "libeliumlibelium" /*private a 16-Byte key to encrypt message*/
+char * message;                     /*original message on which the algorithm will be applied*/
+int8_t e;                           /*status variable*/
+uint8_t encrypted_message[300];     /*encrypted message*/
+uint16_t encrypted_length;          /*encrypted message's length*/
 
-//private a 16-Byte key to encrypt message  
-char password[] = "libeliumlibelium"; 
-
-//original message on which the algorithm will be applied 
-char message[] = "Hello, this is a test";
-
-//status variable
-int8_t e;
-
-//encrypted message 
-uint8_t encrypted_message[300]; 
-
-//encrypted message's length
-uint16_t encrypted_length;
-
+/*SETUP*/
 void setup(){
   USB.ON();
+
+  //configura microcom capacitiu detector cso
+  pinMode(PIN_MICROCOM,INPUT);
+  PWR.setSensorPower(SENS_3V3,SENS_ON);
+
+  //configura lora
   sx1272.ON();
   e=sx1272.setChannel(CH_12_868);
-  USB.print(F("Setting Channel.\t state "));
-  USB.println(e);
-
-  //select implicit (off) or explicit (on) header mode
   e=sx1272.setHeaderON();
-  USB.print(F("Setting Header.\t\t state "));
-  USB.println(e);
-
-  //select mode: from 1 to 10
   e=sx1272.setMode(1);
-  USB.print(F("Setting Mode.\t\t state "));
-  USB.println(e);
-
-  //select CRC on or off
   e=sx1272.setCRC_ON();
-  USB.print(F("Setting CRC.\t\t\t state "));
-  USB.println(e);
-
-  //select output power (Max, High or Low)
   e=sx1272.setPower('L');
-  USB.print(F("Setting Power.\t\t state "));
-  USB.println(e);
-
-  //select the node address value: from 2 to 255
   e=sx1272.setNodeAddress(2);
-  USB.print(F("Setting Node Address.\t state "));
-  USB.println(e);
-  USB.println();
 
   //setup end
   delay(1000);
 }
 
+/*LOOP*/
 void loop(){
+  //reading DS1820 temperature sensors connected to DIGITAL{4,6,8} pins
+  float temp1 = Utils.readTempDS1820(DIGITAL4); //ºC
+  float temp2 = Utils.readTempDS1820(DIGITAL6); //ºC
+  float temp3 = Utils.readTempDS1820(DIGITAL8); //ºC
+ 
+  //reading microcom
+  bool cso_detected = digitalRead(PIN_MICROCOM); //true/false
 
+  //construeix json string missatge
+
+  delay(2000);
+}
+
+//send json encrypted message via lora
+void send_message(uint8_t * message, uint8_t length){
   //encrypt message
   USB.print(F("Original message:"));
   USB.println(message);
@@ -71,12 +62,7 @@ void loop(){
   encrypted_length = AES.sizeOfBlocks(message);
 
   //calculate encrypted message with ECB cipher mode and PKCS5 padding. 
-  AES.encrypt(  AES_128
-    , password
-    , message
-    , encrypted_message
-    , ECB
-    , PKCS5); 
+  AES.encrypt(AES_128, PASSWORD, message, encrypted_message, ECB, PKCS5); 
 
   //printing encrypted message    
   USB.print(F("Encrypted message:")); 
@@ -87,9 +73,9 @@ void loop(){
   USB.println( (int)encrypted_length);
 
   //sending packet before ending a timeout and waiting for an ACK response  
-  e=sx1272.sendPacketTimeoutACK(rx_address, encrypted_message, encrypted_length);
+  e=sx1272.sendPacketTimeoutACK(RX_ADDRESS, encrypted_message, encrypted_length);
   
-  // 2.2. Check sending status
+  //check sending status
   if(e==0) {
     USB.println(F("--> Packet sent OK"));     
   } else {
@@ -97,8 +83,4 @@ void loop(){
     USB.print(F("state: "));
     USB.println(e, DEC);
   } 
-
-  USB.println();
-  delay(2000);
 }
-
