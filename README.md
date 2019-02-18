@@ -5,21 +5,21 @@ Lluís Bosch (lbosch@icra.cat), projecte GESTOR, icra.
 ## Esquema muntatge
 ```
   +-------------+
-  | Sensors     | (3 de temperatura:[submergit, aire, cso], nivell 1:[maxbotix], overflow 1:["sabata microcom 'capacitiu'"] )
+  | Sensors     | (3 de temperatura:[submergit, aire, cso], nivell: maxbotix, overflow 1: sabata microcom capacitiu)
   |-------------|
-  | Arduino     | (model waspmote de libelium)
+  | Arduino     | (waspmote de libelium)
   |-------------|
-  | sx1272      | (mòdul que envia dades via LoRa)
+  | sx1272      | (mòdul envia dades via LoRa)
   +-------------+
      ) ) )
-   Senyal LoRa (json string) "{'id_sensor':int, 'datetime':string, 'temperatura1':float, 'temperatura2':float, 'temperatura3':float, 'nivell':float, 'overflow':bool, 'bateria':%}"
+   Senyal LoRa (json string encriptat)
      ) ) )
   +---------+
-  | sx1272  | (mòdul que rep dades via LoRa)
+  | sx1272  | (mòdul rep dades via LoRa)
   +---------+
-  | Gateway | (envia el que rep de LoRa cap al PC vis USB)
+  | Gateway | (envia el que rep de LoRa cap al PC via USB)
   |---------|
-  | PC      | (raspberry pi amb python3 amb internet)
+  | PC      | (raspberry pi amb python3 i internet)
   +---------+
      ||
    Internet
