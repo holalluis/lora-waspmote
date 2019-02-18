@@ -9,12 +9,12 @@ def post(rebut):
   rebut=json.dumps(rebut);
 
   #do request
-  print("Posting data...");
+  print("Posting data... ",end='');
   r=requests.post('http://lora.h2793818.stratoserver.net/post.php',{'data':rebut});
 
   #print result
   print(r.status_code);
-  print(r.text);
+  #print(r.text); //resultat html
   return;
   
 #test

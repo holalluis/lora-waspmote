@@ -6,33 +6,29 @@
   I envia les lectures via:
     LoRa SX1272 (libelium)
 
+  TODO: posar F("") als literal strings per estalviar memoria
+  TODO: afegir el nivell de bateria i voltatge
   TODO: enlloc de fer una sola lectura, fes-ne 15-20 i fes la mitjana
   TODO: poder configurar el time interval
+  TODO: afegir la data
+  TODO: implementar timeout pel send lora message
 */
-
-//biblioteques
 #include<WaspSX1272.h>
 #include<WaspAES.h>
 
-//constants
 #define WASPMOTE_ID 1               /*id of waspmote*/
 #define DEBUG true                  /*usb debugging*/
 #define PASSWORD "libeliumlibelium" /*private a 16-Byte key to encrypt message*/
-#define PIN_MICROCOM DIGITAL1       /*pin microcom*/
 #define RX_ADDRESS 1                /*destination address to send packets*/
+#define PIN_MICROCOM DIGITAL1       /*pin microcom*/
 #define TIMEOUT 1000                /*maxbotix timeout serial read*/
-#define MSG_LENGTH 200              /*tamany max missatge json*/
-
-//prototips funcions
-int readSensorSerial();
-void construct_json_message(char *message, float temp1, float temp2, float temp3, bool cso_detected, int distance);
-void lora_send_message(char * message);
+#define MSG_LENGTH 200              /*max length missatge json*/
 
 void setup(){
   //inicia USB i mostra id waspmote
   if(DEBUG){
     USB.ON();
-    USB.print("Waspmote id: ");
+    USB.print(F("Waspmote id: "));
     USB.println(WASPMOTE_ID);
   }
 
@@ -50,39 +46,70 @@ void setup(){
   //configura lora enviament dades
   sx1272.ON();
   int8_t e;//estat configuració
-  e=sx1272.setChannel(CH_12_868); if(DEBUG){USB.print("set channel: ");     USB.println(e);}
-  e=sx1272.setHeaderON();         if(DEBUG){USB.print("set header on: ");   USB.println(e);}
-  e=sx1272.setMode(1);            if(DEBUG){USB.print("set mode 1: ");      USB.println(e);}
-  e=sx1272.setCRC_ON();           if(DEBUG){USB.print("set crc on: ");      USB.println(e);}
-  e=sx1272.setPower('L');         if(DEBUG){USB.print("set power: ");       USB.println(e);}
-  e=sx1272.setNodeAddress(2);     if(DEBUG){USB.print("set node address: ");USB.println(e);}
+  e=sx1272.setChannel(CH_12_868); if(DEBUG){USB.print(F("set channel: "));     USB.println(e);}
+  e=sx1272.setHeaderON();         if(DEBUG){USB.print(F("set header on: "));   USB.println(e);}
+  e=sx1272.setMode(1);            if(DEBUG){USB.print(F("set mode 1: "));      USB.println(e);}
+  e=sx1272.setCRC_ON();           if(DEBUG){USB.print(F("set crc on: "));      USB.println(e);}
+  e=sx1272.setPower('L');         if(DEBUG){USB.print(F("set power: "));       USB.println(e);}
+  e=sx1272.setNodeAddress(2);     if(DEBUG){USB.print(F("set node address: "));USB.println(e);}
   delay(1000);
 }
 
 void loop(){
-  if(DEBUG) USB.println("Loop start");
+  //read battery level
+  int   battery = PWR.getBatteryLevel(); //%
+  float volts   = PWR.getBatteryVolts(); //V
+  if(DEBUG){
+    //show remaining battery level
+    USB.print(F("Battery Level: "));
+    USB.print(battery);
+    USB.print(F(" %"));
+
+    //show battery Volts
+    USB.print(F(" | Battery (Volts): "));
+    USB.print(volts);
+    USB.println(F(" V"));
+
+    //get charging state and current
+    bool chargeState = PWR.getChargingState();
+
+    //show battery charging state. This is valid for both USB and Solar panel
+    //if any of those ports are used the charging state will be true
+    USB.print(F("Battery charging state: "));
+    if(chargeState){
+      USB.println(F("Battery is charging"));
+    }else{
+      USB.println(F("Battery is not charging"));
+    }
+    USB.println(F("----------"));
+  }
 
   //reading DS1820 temperature (ºC) connected to DIGITAL{4,6,8} pins
-  if(DEBUG) USB.println("Reading temperature (ºC)...");
-  float temp1 = Utils.readTempDS1820(DIGITAL4); if(DEBUG) USB.println(temp1);
-  float temp2 = Utils.readTempDS1820(DIGITAL6); if(DEBUG) USB.println(temp2);
-  float temp3 = Utils.readTempDS1820(DIGITAL8); if(DEBUG) USB.println(temp3);
+  if(DEBUG) USB.println(F("Reading temperature (ºC)..."));
+  float temp1=Utils.readTempDS1820(DIGITAL4); if(DEBUG) USB.println(temp1);
+  float temp2=Utils.readTempDS1820(DIGITAL6); if(DEBUG) USB.println(temp2);
+  float temp3=Utils.readTempDS1820(DIGITAL8); if(DEBUG) USB.println(temp3);
  
   //read microcom overflow detector
-  if(DEBUG) USB.println("Reading cso overflows (0/1)...");
+  if(DEBUG) USB.println(F("Reading cso overflows (0/1)..."));
   bool cso_detected = digitalRead(PIN_MICROCOM); //true/false overflow
   if(DEBUG) USB.println(cso_detected);
 
   //read maxbotix distance sensor
-  if(DEBUG) USB.println("Reading distance (cm)...");
+  if(DEBUG) USB.println(F("Reading distance (cm)..."));
   int distance = readSensorSerial();
   if(DEBUG) USB.println(distance);
+  if(DEBUG) USB.println(F("----------"));
 
-  //construeix json string missatge
+  //construeix string json amb les dades llegides dels sensors
   char message[MSG_LENGTH];
-  construct_json_message(message, temp1, temp2, temp3, cso_detected, distance);
+  construct_json_message(
+    message, 
+    temp1, temp2, temp3, cso_detected, distance,
+    battery, volts
+  );
 
-  //envia el missatge via lora
+  //envia string json al gateway via lora
   lora_send_message(message);
 
   if(DEBUG) USB.println(F("=================================================="));
@@ -112,20 +139,30 @@ int readSensorSerial() {
 }
 
 //construct json string message
-void construct_json_message( char *message,
-  float temp1, float temp2, float temp3, bool cso_detected, int distance){
+void construct_json_message( 
+  char *message,
+  float temp1, float temp2, float temp3, bool cso_detected, int distance,
+  int battery, float volts
+  ){
   //use dtostrf() to convert from float to string:
   //'1' refers to minimum width
   //'3' refers to number of decimals
   char t1[10]; dtostrf(temp1,1,3,t1);
   char t2[10]; dtostrf(temp2,1,3,t2);
   char t3[10]; dtostrf(temp3,1,3,t3);
+  char vv[10]; dtostrf(volts,1,3,vv);
 
-  //estructura json: {waspmote_id,temp1,temp2,temp3,cso_detected,distance}
-  snprintf( message, MSG_LENGTH,
-    "{waspmote_id:%d, t1:%s, t2:%s, t3:%s, cso_detected:%d, distance:%d}", 
-    WASPMOTE_ID, t1, t2, t3, cso_detected, distance
+  //estructura json: {waspmote_id,temp1,temp2,temp3,cso_detected,distance,battery,volts}
+  snprintf(message, MSG_LENGTH,
+    "{waspmote_id:%d,t1:%s,t2:%s,t3:%s,cso_detected:%d,distance:%d,battery:%d,volts:%s}", 
+    WASPMOTE_ID,
+    t1, t2, t3, cso_detected, distance,
+    battery, vv
   );
+
+  //make sure message length is multiple of 16 (for AES)
+  while(strlen(message)%16 !=0)
+    message=strcat(message," ");
 }
 
 //encrypt and send message via lora
