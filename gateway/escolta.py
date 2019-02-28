@@ -34,7 +34,7 @@ def listen():
         except Exception as e:
           print(e);
       else:
-        time.sleep(3);
+        time.sleep(5); #wait some time so input buffer can be filled
   except KeyboardInterrupt:
     pass;
 

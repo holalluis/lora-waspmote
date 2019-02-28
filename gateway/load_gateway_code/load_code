@@ -1,0 +1,87 @@
+######################################################################################
+# Bash for checking Gateway with LORA module
+#
+# Settings:
+# PORT = USB port
+# HEX_FILE = HEX file (compiled using Waspmote IDE)
+# CONF_FILE = Avrdude conf. file
+######################################################################################
+
+clear
+
+echo "Type the USB port where Gateway is connected. Example: USB0. "
+read port
+
+AVRDUDE_PROG=$(pwd)/avrdude
+PORT=/dev/tty$port
+HEX_FILE=$(pwd)/LORA_ME.hex
+CONF_FILE=$(pwd)/avrdude.conf
+HEX_FILE_TEST=$(pwd)/TEST_CO.hex
+
+# Reset Waspmote
+stty -F $PORT hupcl
+
+# Upload the program
+$AVRDUDE_PROG -C$CONF_FILE -F -patmega1281 -cstk500v1 -P$PORT -b115200 -D -Uflash:w:$HEX_FILE_TEST:i
+
+sleep 0.5
+
+
+echo
+echo "#################################################"
+echo "#             Code uploaded			          #"
+echo "#################################################"
+echo
+
+echo "Now a test is performed. Ensure that the LoRa module is plugged into the gateway and press ENTER "
+read enter
+
+# Reset Waspmote
+#stty -F $PORT hupcl
+stty -F $PORT 38400 cs8 -cstopb -parenb
+
+
+
+
+# Read the output of the Gateway SPI (test OK or not OK)
+read -e LINE < $PORT
+#echo $LINE
+LINE1=${LINE:2}
+#echo $LINE1
+
+case $LINE1 in
+Configuracion_OK ) resultado_test=1;;
+Configuracion_NOT_OK ) resultado_test=0;;
+esac
+
+echo
+echo "#################################################"
+echo "# Test Gateway  done                            #"
+echo "#################################################"
+echo
+
+sleep 2
+
+# Reset Waspmote
+stty -F $PORT hupcl
+
+# Upload the program
+$AVRDUDE_PROG -C$CONF_FILE -F -patmega1281 -cstk500v1 -P$PORT -b115200 -D -Uflash:w:$HEX_FILE:i
+
+echo
+
+case $LINE1 in
+Configuracion_OK )
+resultado_test=1
+echo "#################################################"
+echo "# 	Test Gateway OK		              #"
+echo "#################################################";;
+Configuracion_NOT_OK )
+resultado_test=0
+echo "#################################################"
+echo "# 	Test Failed	                      #"
+echo "#################################################";;
+esac
+echo
+echo "(Ctrl + c para salir o esperar 5 segundos)"
+sleep 5
