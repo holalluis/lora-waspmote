@@ -6,6 +6,7 @@
   TLDR: Continuously listen serial port and handle output, i.e packets sent by lora transmitter
 
 '''
+import time
 import serial
 import config            as c # see 'config.py'
 import processa_missatge as p # see 'processa_missatge.py'
@@ -23,18 +24,19 @@ ser.flush()
 
 #funció listen
 def listen():
-  print('Escoltant a',ser.port)
+  print('Escoltant a',ser.port);
   try:
     while True:
-      lines=ser.readlines()
-      if len(lines):
-        rebut=lines[0];
+      if(ser.in_waiting):
+        rebut=ser.read(ser.in_waiting);
         try:
-          p.processa(rebut)
+          p.processa(rebut);
         except Exception as e:
           print(e);
+      else:
+        time.sleep(3);
   except KeyboardInterrupt:
-    pass
+    pass;
 
 #listen serial port
 listen()
