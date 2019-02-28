@@ -1,4 +1,4 @@
-DESCRIPCIÓ                                    | EMPRESA             | REFERENCIA
+DESCRIPCIÓ                                    | EMPRESA             | REFERÈNCIA
 --------------------------------------------------------------------------------
 
 Material circuit imprès
