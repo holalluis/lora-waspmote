@@ -15,7 +15,8 @@ Modul LoRa libelium                           | Libelium            |
 Bateria
 -------
 ```
-6600mA·h Rechargeable Battery HSCODE:85076000 | Libelium | 6041
+6600mA·h Rechargeable Battery HSCODE:85076000 | Libelium | 6041W
+Exemple                                       | Exemple  | Exemple
 ```
 
 Caixa
