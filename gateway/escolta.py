@@ -27,14 +27,15 @@ def listen():
   print('Escoltant a',ser.port);
   try:
     while True:
-      if(ser.in_waiting):
-        rebut=ser.read(ser.in_waiting);
+      bytes_incoming = ser.in_waiting;
+      if(bytes_incoming):
+        rebut = ser.read(bytes_incoming);
         try:
           p.processa(rebut);
         except Exception as e:
           print(e);
       else:
-        time.sleep(5); #wait some time so input buffer can be filled
+        time.sleep(5); #wait input buffer being filled
   except KeyboardInterrupt:
     pass;
 

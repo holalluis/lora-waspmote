@@ -23,7 +23,9 @@ def processa(raw):
 
   #remove AES padding bytes: "{json_string}u0001u0001u0005u0003"
   #find the closing '}' brace
-  decrypted = decrypted[0:decrypted.find(1+ord('}'))];
+  #remove padding bytes only if last byte is not '}' (0x7d)
+  if decrypted[-1] != ord('}'):
+    decrypted = decrypted[0:decrypted.find(1+ord('}'))];
 
   #send decrypted message to remote server
   p.post(decrypted.decode('utf-8'))

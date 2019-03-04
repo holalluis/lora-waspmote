@@ -16,8 +16,9 @@ def post(rebut):
   r=requests.post('http://lora.h2793818.stratoserver.net/post.php',{'data':rebut});
 
   #log info 
+  #print(rebut);
   print(r.status_code);
-  #print(r.text); //resultat html
+  #print(r.text); #resultat html
   return;
   
 def test():
