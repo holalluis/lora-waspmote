@@ -10,43 +10,49 @@
   TODO 3: variar sleep interval a sleep interval rain si es detecta cso
   TODO 4: implementar timeout pel send lora message
   TODO 5: guardar temperatura cada 2 min quan plou
- 
+  TODO 6: debug only if battery is charging
 */
+
 #include<WaspSX1272.h>
 #include<WaspAES.h>
 
-#define DEBUG               true               /*usb debugging*/
-#define SLEEP_INTERVAL_DRY  "00:00:00:30"      /*deep sleep interval (dry weather)*/
-#define SLEEP_INTERVAL_RAIN "00:00:00:01"      /*deep sleep interval when it is raining*/
-#define NUM_LOOPS_DRY       5                  /*numero lectures seguides abans de dormir SLEEP_INTERVAL_DRY*/
-#define NUM_LOOPS_RAIN      60                 /*numero lectures seguides abans de dormir SLEEP_INTERVAL_RAIN*/
-
+#define SLEEP_INTERVAL_DRY  "00:00:05:00"      /*deep sleep interval (dry weather)*/
+#define SLEEP_INTERVAL_RAIN "00:00:01:00"      /*deep sleep interval when it is raining*/
+#define NUM_LOOPS_DRY       1                  /*numero lectures seguides abans de dormir SLEEP_INTERVAL_DRY*/
+#define NUM_LOOPS_RAIN      10                 /*numero lectures seguides abans de dormir SLEEP_INTERVAL_RAIN*/
 #define POWER               'L'                /*LoRa emission energy: Low(L) High(H) Max(M)*/
 #define PIN_MICROCOM        DIGITAL1           /*pin microcom (cso detection)*/
 #define PIN_T1              DIGITAL4           /*pin sensor temperatura 1*/
 #define PIN_T2              DIGITAL6           /*pin sensor temperatura 2*/
 #define PIN_T3              DIGITAL8           /*pin sensor temperatura 3*/
 #define TIMEOUT             3000               /*ms maxbotix serial read timeout*/
-#define MSG_LENGTH          200                /*max length missatge json*/
+#define MSG_LENGTH          200                /*max length missatge json in bytes*/
 #define PASSWORD            "libeliumlibelium" /*private a 16-Byte key to encrypt message*/
 #define RX_ADDRESS          1                  /*destination address (lora gateway) to send packets*/
 
-unsigned int paquets_enviats    = 0;
-unsigned int numero_loop_actual = 0;
-bool         its_raining        = false;
-char         wasp_id[17];
+bool         debug              = false;       /*usb debugging*/
+bool         chargeState        = false;       /*is battery charging?*/
+unsigned int paquets_enviats    = 0;           /*number of sent packets*/
+unsigned int numero_loop_actual = 0;           /*current loop number before deep sleep*/
+bool         its_raining        = false;       /*it is raining?*/
+char         wasp_id[17];                      /*wasp id*/
 
 void setup(){
+  //decide if debug is true or false according to chargeState
+  //get charging state and current
+  chargeState = PWR.getChargingState();
+  debug = chargeState;
+
   //get wasp id
   Utils.readSerialID();
   snprintf(
-      wasp_id, 16, "%x%x%x%x%x%x%x%x",
-      _serial_id[0], _serial_id[1], _serial_id[2], _serial_id[3],
-      _serial_id[4], _serial_id[5], _serial_id[6], _serial_id[7]
+    wasp_id, 16, "%x%x%x%x%x%x%x%x",
+    _serial_id[0], _serial_id[1], _serial_id[2], _serial_id[3],
+    _serial_id[4], _serial_id[5], _serial_id[6], _serial_id[7]
   );
 
   //inicia USB i mostra id waspmote
-  if(DEBUG){
+  if(debug){
     USB.ON();
     USB.print(F("Waspmote id: "));
     USB.println(wasp_id);
@@ -66,15 +72,15 @@ void setup(){
   //LoRa configuration
   sx1272.ON();
   int8_t e; //status
-  e=sx1272.setChannel(CH_12_868); if(DEBUG){USB.print("set channel: ");     USB.println(e);} //frequency channel
-  e=sx1272.setHeaderON();         if(DEBUG){USB.print("set header on: ");   USB.println(e);} //implicit or explicit header mode
-  e=sx1272.setMode(1);            if(DEBUG){USB.print("set mode 1: ");      USB.println(e);} //mode: from 1 to 10
-  e=sx1272.setCRC_ON();           if(DEBUG){USB.print("set crc on: ");      USB.println(e);} //CRC on or off
-  e=sx1272.setPower(POWER);       if(DEBUG){USB.print("set power: ");       USB.println(e);} //output power (Max, High or Low)
-  e=sx1272.setNodeAddress(2);     if(DEBUG){USB.print("set node address: ");USB.println(e);} //the node address value: from 2 to 255
+  e=sx1272.setChannel(CH_12_868); if(debug){USB.print("set channel: ");     USB.println(e);} //frequency channel
+  e=sx1272.setHeaderON();         if(debug){USB.print("set header on: ");   USB.println(e);} //implicit or explicit header mode
+  e=sx1272.setMode(1);            if(debug){USB.print("set mode 1: ");      USB.println(e);} //mode: from 1 to 10
+  e=sx1272.setCRC_ON();           if(debug){USB.print("set crc on: ");      USB.println(e);} //CRC on or off
+  e=sx1272.setPower(POWER);       if(debug){USB.print("set power: ");       USB.println(e);} //output power (Max, High or Low)
+  e=sx1272.setNodeAddress(2);     if(debug){USB.print("set node address: ");USB.println(e);} //the node address value: from 2 to 255
 
-  if(DEBUG) USB.println(F("------------------------------"));
-
+  //end setup
+  if(debug) USB.println(F("------------------------------"));
   delay(1000);
 }
 
@@ -82,7 +88,8 @@ void loop(){
   //read battery level
   int   battery = PWR.getBatteryLevel(); //%
   float volts   = PWR.getBatteryVolts(); //V
-  if(DEBUG){
+
+  if(debug){
     //show remaining battery level
     USB.print(F("Battery Level: "));
     USB.print(battery);
@@ -92,9 +99,6 @@ void loop(){
     USB.print(F(" | Battery (Volts): "));
     USB.print(volts);
     USB.println(F(" V"));
-
-    //get charging state and current
-    bool chargeState = PWR.getChargingState();
 
     //show battery charging state. This is valid for both USB and Solar panel
     //if any of those ports are used the charging state will be true
@@ -107,28 +111,27 @@ void loop(){
   }
 
   //read DS1820 temperature (ºC)
-  if(DEBUG) USB.print(F("Reading temperature (ºC)... "));
-  float temp1 = Utils.readTempDS1820(PIN_T1); if(DEBUG){ USB.print(  temp1); USB.print(", "); }
-  float temp2 = Utils.readTempDS1820(PIN_T2); if(DEBUG){ USB.print(  temp2); USB.print(", "); }
-  float temp3 = Utils.readTempDS1820(PIN_T3); if(DEBUG){ USB.println(temp3); }
+  if(debug) USB.print(F("Reading temperature (ºC)... "));
+  float temp1 = Utils.readTempDS1820(PIN_T1); if(debug){ USB.print(  temp1); USB.print(", "); }
+  float temp2 = Utils.readTempDS1820(PIN_T2); if(debug){ USB.print(  temp2); USB.print(", "); }
+  float temp3 = Utils.readTempDS1820(PIN_T3); if(debug){ USB.println(temp3); }
  
   //read microcom overflow detector
-  if(DEBUG) USB.print(F("Reading cso overflows (true/false)..."));
+  if(debug) USB.print(F("Reading cso overflows (true/false)..."));
   bool cso_detected = digitalRead(PIN_MICROCOM); //true/false overflow
   its_raining = cso_detected;
 
-  if(DEBUG){
+  if(debug){
     USB.println(cso_detected);
     if(its_raining){
-      USB.println(F("[IT IS RAINING]"));
+      USB.println(F("[IT IS RAINING (or microcom sensor unplugged)]"));
     }else{
       USB.println(F("[IT IS NOT RAINING]"));
     }
   }
 
-
   //read maxbotix distance sensor n times
-  if(DEBUG) USB.println(F("Reading distance (cm)..."));
+  if(debug) USB.println(F("Reading distance (cm)..."));
 
   unsigned short distances[15]; //read the distance 15 times
   for(int i=0;i<15;i++){
@@ -138,7 +141,7 @@ void loop(){
       if(millis()-timeout > TIMEOUT) break;
       distances[i] = readSensorSerial();
     }
-    if(DEBUG){ 
+    if(debug){ 
       USB.print(distances[i]);
       USB.print(i<14?",":": ");
     }
@@ -148,11 +151,11 @@ void loop(){
   PWR.setSensorPower(SENS_3V3,SENS_OFF);
   PWR.setSensorPower(SENS_5V,SENS_OFF);
 
-  //compute average of distances measured
+  //compute distances measured average
   unsigned short distance = computeAverage(distances,15);
-  if(DEBUG) USB.println(distance);
+  if(debug) USB.println(distance);
 
-  //construeix string json amb tots els readings fets
+  //construct string json with all readings done so far
   char message[MSG_LENGTH];
   construct_json_message(
     message, 
@@ -160,26 +163,26 @@ void loop(){
     battery, volts
   );
 
-  //envia string json al gateway via lora
+  //send string json to gateway via lora
   lora_send_message(message);
 
   //add 1 to current loop counter
   numero_loop_actual++;
 
-  if(DEBUG){
+  if(debug){
     USB.print("loop before deep sleep: ");
     USB.print(numero_loop_actual);
     USB.print("/");
     USB.println(its_raining ? NUM_LOOPS_RAIN : NUM_LOOPS_DRY);
-    USB.println(F("============================= "));
+    USB.println(F("============================="));
   }
 
-  //check if we should start deep sleep
+  //check if we can start deep sleep
   if(
     numero_loop_actual >= (its_raining ? NUM_LOOPS_RAIN : NUM_LOOPS_DRY)
   ){
-    //deep sleep
-    if(DEBUG){
+    //start deep sleep
+    if(debug){
       USB.print(F("Entering deep sleep... "));
       USB.println(its_raining ? SLEEP_INTERVAL_RAIN : SLEEP_INTERVAL_DRY);
     }
@@ -188,13 +191,13 @@ void loop(){
       its_raining ? SLEEP_INTERVAL_RAIN : SLEEP_INTERVAL_DRY, 
       RTC_OFFSET, RTC_ALM1_MODE1, ALL_OFF
     );
-    if(DEBUG){
+    if(debug){
       USB.println(F("wake up!"));
       USB.println();
     }
   }
 
-  //call setup() to switch on power again
+  //call setup() to switch on power
   setup();
 }
 
@@ -227,12 +230,12 @@ void construct_json_message(
   int battery, float volts
   ){
   //use dtostrf() to convert from float to string:
-  //'1' refers to minimum width
-  //'3' refers to number of decimals
-  char t1[10]; dtostrf(temp1,1,1,t1);
-  char t2[10]; dtostrf(temp2,1,1,t2);
-  char t3[10]; dtostrf(temp3,1,1,t3);
-  char vv[10]; dtostrf(volts,1,1,vv);
+  //first '1' refers to minimum width
+  //second '1' refers to number of decimals
+  char t1[6]; dtostrf(temp1,1,1,t1);
+  char t2[6]; dtostrf(temp2,1,1,t2);
+  char t3[6]; dtostrf(temp3,1,1,t3);
+  char vv[6]; dtostrf(volts,1,1,vv);
 
   //estructura json: {waspmote_id,temp1,temp2,temp3,cso_detected,distance}
   snprintf( message, MSG_LENGTH,
@@ -250,40 +253,41 @@ void construct_json_message(
 }
 
 //encrypt and send message via lora
-void lora_send_message(char * message){
+void lora_send_message(char *message){
   //encrypt message
-  if(DEBUG){
-    USB.print(F("Original:"));
-    USB.println(message);
+  if(debug){
+    USB.print(F("Original:")); USB.println(message);
   }
 
   //calculate length in Bytes of the encrypted message 
   uint16_t encrypted_length = AES.sizeOfBlocks(message);
 
   //encrypted message
-  uint8_t encrypted_message[300];
+  uint8_t encrypted_message[MSG_LENGTH];
 
   //calculate encrypted message with ECB cipher mode and PKCS5 padding. 
   AES.encrypt(AES_128, PASSWORD, message, encrypted_message, ECB, PKCS5); 
 
   //print original message and encrypted message
-  if(DEBUG){
+  if(debug){
     //printing encrypted message    
     USB.print(F("Encrypted:")); 
     AES.printMessage(encrypted_message, encrypted_length); 
   }
 
   //send packet before ending a timeout and waiting for an ACK response  
-  if(DEBUG){
+  if(debug){
     USB.print(F("Sending data via LoRa... "));
     USB.print((int)encrypted_length);
     USB.println(" bytes");
   }
+
+  //send encrypted packet via lora
   int8_t e;
   e = sx1272.sendPacketTimeoutACK(RX_ADDRESS, encrypted_message, encrypted_length);
   
   //check sending status
-  if(DEBUG){
+  if(debug){
     if(e==0){
       USB.println(F("--> Packet sent OK"));     
     }else{
@@ -296,9 +300,9 @@ void lora_send_message(char * message){
   //retry if sending packet fails
   unsigned short retry=0;
   while(e!=0 && retry<10){
-    if(DEBUG){ USB.println(F("Retry sending...")); }
+    if(debug){ USB.println(F("Retry sending...")); }
     e = sx1272.sendPacketTimeoutACK(RX_ADDRESS, encrypted_message, encrypted_length);
-    if(DEBUG){
+    if(debug){
       if(e==0){
         USB.println(F("--> Packet sent OK (during retry)"));
       }else{
