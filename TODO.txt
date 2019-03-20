@@ -1,0 +1,4 @@
+
+investigar colisions
+implementar RTC al waspmote
+implementar threads al codi gateway per processar missatges
