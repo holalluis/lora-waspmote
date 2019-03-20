@@ -1,0 +1,12 @@
+Proves comunicació LoRa
+Lloc: icra
+Data: 20/03/2019
+Servidor: http://lora.h2793818.stratoserver.net/
+---------+--------------------------------------
+waspmote | lloc icra
+---------+--------------------------------------
+2728     | habitació impressora, pis 0
+2f76     | passadís TiA (davand del D07)
+5e0a     | parking (al costat de la llanxa)
+5f83     | pis 2 (al costat màquina de vending)
+---------+--------------------------------------
