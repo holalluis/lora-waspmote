@@ -17,12 +17,11 @@
 /* CONFIGURATION */
 /*****************/
 
-//set time [yy:mm:dd:dow:hh:mm:ss]
-#define NOW "19:03:13:04:16:07:30"
-//1:Sun,2:Mon,3:Tue,4:Wed,5:Thu,6:Fri,7:Sat
+//set time [yy:mm:dd:dow:hh:mm:ss] | dow{1:Sun,2:Mon,3:Tue,4:Wed,5:Thu,6:Fri,7:Sat}
+//#define NOW "19:03:13:04:16:07:30"
 
-#define SLEEP_INTERVAL_DRY  "00:00:00:10"      /*deep sleep interval (dry weather)*/
-#define SLEEP_INTERVAL_RAIN "00:00:00:10"      /*deep sleep interval when it is raining*/
+#define SLEEP_INTERVAL_DRY  "00:00:01:00"      /*deep sleep interval (dry weather)*/
+#define SLEEP_INTERVAL_RAIN "00:00:01:00"      /*deep sleep interval when it is raining*/
 #define NUM_LOOPS_DRY       3                  /*numero lectures seguides abans de dormir SLEEP_INTERVAL_DRY*/
 #define NUM_LOOPS_RAIN      3                  /*numero lectures seguides abans de dormir SLEEP_INTERVAL_RAIN*/
 #define POWER               'L'                /*LoRa emission energy: Low(L) High(H) Max(M)*/
@@ -45,18 +44,19 @@ bool           rtc_set            = false;     /*time and date set*/
 unsigned short node_address;                   /*each node must have different address*/
 char           wasp_id[5];                     /*wasp id (4 chars)*/
 bool           chargeState        = false;     /*is battery charging?*/
-unsigned int   paquets_enviats    = 0;         /*number of sent packets*/
-unsigned int   paquets_rebuts     = 0;         /*number of ackd packets*/
+unsigned int   paquets_enviats    = 0;         /*number of sent packets (tx)*/
+unsigned int   paquets_rebuts     = 0;         /*number of ackd packets (rx)*/
 unsigned short numero_loop_actual = 0;         /*current loop number before deep sleep*/
 bool           its_raining        = false;     /*it is raining?*/
 
 void setup(){
+  /*
   if(rtc_set==false){
     RTC.setTime(NOW);
     rtc_set=true;
-  }
+  }*/
 
-  //battery charge state
+  //get battery charging state
   chargeState = PWR.getChargingState();
 
   //get wasp id
@@ -69,8 +69,8 @@ void setup(){
     USB.print(F("Waspmote id: "));
     USB.println(wasp_id);
     //reading time
-    USB.println(F("Date[dow,YY/MM/DD,hh:mm:ss]"));
-    USB.println(RTC.getTime());
+    //USB.println(F("Date[dow,YY/MM/DD,hh:mm:ss]"));
+    //USB.println(RTC.getTime());
   }
 
   //config microcom capacitiu detector cso overflows
@@ -102,8 +102,7 @@ void lora_setup(){
   int8_t e=-1; //sx1272 status
 
   /*frequency channel*/
-  /*
-    channels:
+  /*channels:
       CH_10_868 CH_11_868 CH_12_868 CH_13_868
       CH_14_868 CH_15_868 CH_16_868 CH_17_868
   */
@@ -129,7 +128,7 @@ void lora_setup(){
   }
   e=-1;
 
-  /*implicit or explicit header*/
+  /*set implicit or explicit header*/
   while(e!=0){
     e=sx1272.setHeaderON();
     if(debug){
@@ -171,7 +170,7 @@ void lora_setup(){
   }
   e=-1;
 
-  /*CRC on or off*/
+  /*set CRC on or off*/
   while(e!=0){
     e=sx1272.setCRC_ON();
     if(debug){
@@ -182,7 +181,7 @@ void lora_setup(){
   }
   e=-1;
 
-  /*output power (Max, High or Low)*/
+  /*set output power (Max, High or Low)*/
   while(e!=0){
     e=sx1272.setPower(POWER);
     if(debug){
@@ -193,9 +192,8 @@ void lora_setup(){
   }
   e=-1;
 
-  /*the node address value: from 2 to 255*/
+  /*set node (sender) address value: from 2 to 255*/
   while(e!=0){
-
     /*
       the addresses of the devices are:
         >>> 0x27 (39)
@@ -205,7 +203,6 @@ void lora_setup(){
         >>> 0x6d (109)
     */
     node_address = _serial_id[0];
-
     e=sx1272.setNodeAddress(node_address);
     if(debug){
       USB.print(F("set node address "));
@@ -370,9 +367,9 @@ unsigned short computeAverage(unsigned short *distances, int length){
 
 //construct json string message
 void construct_json_message( 
-  char *message,
-  float temp1, float temp2, float temp3, bool cso_detected, unsigned short distance,
-  int battery, float volts
+    char *message,
+    float temp1, float temp2, float temp3, bool cso_detected, unsigned short distance,
+    int battery, float volts
   ){
   //use dtostrf() to convert from float to string:
   //first '1' refers to minimum width
@@ -383,12 +380,12 @@ void construct_json_message(
   //char vv[6]; dtostrf(volts,1,1,vv);
 
   //estructura json: {waspmote_id,temp1,temp2,temp3,cso_detected,distance}
-  snprintf( message, MSG_LENGTH,
-    "{w_id:\"%s\",T:[%s,%s,%s],cso:%d,d:%d,bat:%d,pwr:\"%s\",tx:%d,rx:%d}", 
+  snprintf(message, MSG_LENGTH,
+    "{wid:\"%s\",T:[%s,%s,%s],cso:%d,d:%d,bat:%d,pwr:\"%c\",tx:%d}", 
     wasp_id,
     t1, t2, t3, cso_detected, distance,
     battery, POWER,
-    paquets_enviats++, paquets_rebuts
+    paquets_enviats++
   );
 
   //make sure message length is multiple of 16 (for AES)
@@ -400,14 +397,12 @@ void construct_json_message(
 //encrypt and send message via lora
 void lora_send_message(char *message){
   //encrypt message
-  if(debug){
-    USB.print(F("Original:")); USB.println(message);
-  }
+  if(debug){ USB.print(F("Original:")); USB.println(message); }
 
   //calculate length in Bytes of the encrypted message 
   uint16_t encrypted_length = AES.sizeOfBlocks(message);
 
-  //encrypted message
+  //new buffer for encrypted message
   uint8_t encrypted_message[MSG_LENGTH];
 
   //calculate encrypted message with ECB cipher mode and PKCS5 padding. 
@@ -441,7 +436,7 @@ void lora_send_message(char *message){
   //state = 1 --> There has been an error while executing the command
   //state = 0 --> The command has been executed with no errors
   int8_t e;
-  e = sx1272.sendPacketTimeoutACK(
+  e = sx1272.sendPacketTimeoutACKRetries(
     RX_ADDRESS, encrypted_message, encrypted_length);
 
   //if ACK is received
