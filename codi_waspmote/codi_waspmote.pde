@@ -1,14 +1,11 @@
 /*
   Waspmote llegeix:
-    Sensors temperatura (3 DS1820)
-    Sensor overflow (cso) capacitiu miocrocom
-    Sensor distància ultrasons maxbotix
-  I envia les lectures via:
-    LoRa SX1272 (libelium)
+    1. Sensors temperatura (3 DS1820)
+    2. Sensor overflow (cso) capacitiu miocrocom
+    3. Sensor distància ultrasons maxbotix
+  Després envia les lectures via LoRa SX1272 (libelium)
   Es reben els paquets a gateway que també té un SX1272, i es llegeixen per USB
-  serial (veure carpeta gateway).
-
-  TODO 1: afegir la data waspmote amb RTC
+  serial (veure codi carpeta "gateway").
 */
 #include<WaspSX1272.h>
 #include<WaspAES.h>
@@ -16,33 +13,25 @@
 /*****************/
 /* CONFIGURATION */
 /*****************/
-
-//set time [yy:mm:dd:dow:hh:mm:ss] | dow{1:Sun,2:Mon,3:Tue,4:Wed,5:Thu,6:Fri,7:Sat}
-//#define NOW "19:03:13:04:16:07:30"
-
 #define SLEEP_INTERVAL_DRY  "00:00:01:00"      /*deep sleep interval (dry weather)*/
 #define SLEEP_INTERVAL_RAIN "00:00:01:00"      /*deep sleep interval when it is raining*/
-#define NUM_LOOPS_DRY       3                  /*numero lectures seguides abans de dormir SLEEP_INTERVAL_DRY*/
+#define NUM_LOOPS_DRY       10                 /*numero lectures seguides abans de dormir SLEEP_INTERVAL_DRY*/
 #define NUM_LOOPS_RAIN      3                  /*numero lectures seguides abans de dormir SLEEP_INTERVAL_RAIN*/
 #define POWER               'L'                /*LoRa emission energy: Low(L) High(H) Max(M)*/
-
 #define RX_ADDRESS          1                  /*destination address (lora gateway) to send packets*/
 #define MODE                1                  /*lora setMode*/
-#define CHANNEL             CH_12_868          /*lora channel*/
 #define MSG_LENGTH          200                /*max length missatge json in bytes*/
 #define PASSWORD            "libeliumlibelium" /*private a 16-Byte key to encrypt message*/
-
 #define PIN_MICROCOM        DIGITAL1           /*pin microcom (cso detection)*/
 #define PIN_T1              DIGITAL4           /*pin sensor temperatura 1*/
 #define PIN_T2              DIGITAL6           /*pin sensor temperatura 2*/
 #define PIN_T3              DIGITAL8           /*pin sensor temperatura 3*/
 #define MB_READINGS         10                 /*maxbotix readings each loop and averaged*/
 #define TIMEOUT             1000               /*ms maxbotix serial read timeout*/
-
+int            channel            = NULL;      /*depends on wasp_id*/
 bool           debug              = 1;         /*usb debugging*/
-bool           rtc_set            = false;     /*time and date set*/
 unsigned short node_address;                   /*each node must have different address*/
-char           wasp_id[5];                     /*wasp id (4 chars)*/
+char           wasp_id[5];                     /*waspmote id (4 chars)*/
 bool           chargeState        = false;     /*is battery charging?*/
 unsigned int   paquets_enviats    = 0;         /*number of sent packets (tx)*/
 unsigned int   paquets_rebuts     = 0;         /*number of ackd packets (rx)*/
@@ -50,12 +39,6 @@ unsigned short numero_loop_actual = 0;         /*current loop number before deep
 bool           its_raining        = false;     /*it is raining?*/
 
 void setup(){
-  /*
-  if(rtc_set==false){
-    RTC.setTime(NOW);
-    rtc_set=true;
-  }*/
-
   //get battery charging state
   chargeState = PWR.getChargingState();
 
@@ -101,15 +84,24 @@ void lora_setup(){
   sx1272.ON();
   int8_t e=-1; //sx1272 status
 
-  /*frequency channel*/
-  /*channels:
-      CH_10_868 CH_11_868 CH_12_868 CH_13_868
+  /*
+    868 MHz channels (8):
+      CH_10_868 CH_11_868 CH_12_868 CH_13_868 
       CH_14_868 CH_15_868 CH_16_868 CH_17_868
   */
   while(e!=0){
-    e=sx1272.setChannel(CHANNEL); //changing the channel does not work
+    /*
+      wasp_id | channel
+      --------+----------
+    */
+    if     (strcmp(wasp_id,"2f76")==0) e=sx1272.setChannel(CH_10_868);
+    else if(strcmp(wasp_id,"6d31")==0) e=sx1272.setChannel(CH_11_868);
+    else if(strcmp(wasp_id,"272b")==0) e=sx1272.setChannel(CH_12_868);
+    else if(strcmp(wasp_id,"5e0a")==0) e=sx1272.setChannel(CH_13_868);
+    else if(strcmp(wasp_id,"5f83")==0) e=sx1272.setChannel(CH_14_868);
+
     if(debug){
-      switch(CHANNEL){
+      switch(sx1272._channel){
         case CH_10_868: USB.print(F("set channel CH_10_868: ")); break;
         case CH_11_868: USB.print(F("set channel CH_11_868: ")); break;
         case CH_12_868: USB.print(F("set channel CH_12_868: ")); break;
@@ -185,7 +177,9 @@ void lora_setup(){
   while(e!=0){
     e=sx1272.setPower(POWER);
     if(debug){
-      USB.print("set power: ");
+      USB.print(F("set power "));
+      USB.print(POWER);
+      USB.print(F(":"));
       USB.println(e);
     }
     if(e) delay(1000);
@@ -207,6 +201,9 @@ void lora_setup(){
     if(debug){
       USB.print(F("set node address "));
       USB.print(node_address);
+      USB.print(F(" (0x"));
+      USB.print(node_address,HEX);
+      USB.print(F(")"));
       USB.print(F(": "));
       USB.println(e);
     }
@@ -255,9 +252,9 @@ void loop(){
   if(debug){
     USB.print(cso_detected);
     if(its_raining){
-      USB.println(F(" [IT IS RAINING (or microcom sensor unplugged)]"));
+      USB.println(F(" [RAINING (or microcom sensor unplugged)]"));
     }else{
-      USB.println(F(" [IT IS NOT RAINING]"));
+      USB.println(F(" [NOT RAINING]"));
     }
   }
 
@@ -379,7 +376,7 @@ void construct_json_message(
   char t3[6]; dtostrf(temp3,1,1,t3);
   //char vv[6]; dtostrf(volts,1,1,vv);
 
-  //estructura json: {waspmote_id,temp1,temp2,temp3,cso_detected,distance}
+  //estructura json: {wasp_id,temp1,temp2,temp3,cso_detected,distance}
   snprintf(message, MSG_LENGTH,
     "{wid:\"%s\",T:[%s,%s,%s],cso:%d,d:%d,bat:%d,pwr:\"%c\",tx:%d}", 
     wasp_id,
@@ -397,7 +394,7 @@ void construct_json_message(
 //encrypt and send message via lora
 void lora_send_message(char *message){
   //encrypt message
-  if(debug){ USB.print(F("Original:")); USB.println(message); }
+  if(debug){ USB.print(F("Paquet:")); USB.println(message); }
 
   //calculate length in Bytes of the encrypted message 
   uint16_t encrypted_length = AES.sizeOfBlocks(message);
@@ -419,9 +416,12 @@ void lora_send_message(char *message){
 
   //send packet before ending a timeout and waiting for an ACK response  
   if(debug){
-    USB.print(F("Sending data (LoRa)... "));
-    USB.print((int)encrypted_length);
-    USB.println(F(" bytes"));
+    USB.print(F("Sending data (LoRa "));
+    USB.print(F("RX "));
+    USB.print(RX_ADDRESS);
+    USB.print(F(", "));
+    USB.print(encrypted_length);
+    USB.println(F(" bytes)"));
   }
 
   //send encrypted packet via lora
@@ -436,8 +436,7 @@ void lora_send_message(char *message){
   //state = 1 --> There has been an error while executing the command
   //state = 0 --> The command has been executed with no errors
   int8_t e;
-  e = sx1272.sendPacketTimeoutACKRetries(
-    RX_ADDRESS, encrypted_message, encrypted_length);
+  e = sx1272.sendPacketTimeoutACKRetries(RX_ADDRESS, encrypted_message, encrypted_length);
 
   //if ACK is received
   if(e==0) paquets_rebuts++;

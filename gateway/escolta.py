@@ -2,19 +2,22 @@
 '''
   Comunicació serial Waspmote SX1272 (gateway)
   http://www.libelium.com/development/waspmote/documentation/lora-gateway-tutorial/
-
   TLDR: Continuously listen serial port and handle output, i.e packets sent by lora transmitter
-
 '''
 import time
 import serial
 import io
 import config            as c # see 'config.py'
 import processa_missatge as p # see 'processa_missatge.py'
+import sys
+
+print(sys.argv)
+#serial port ie. /dev/ttyUSB0
+port = sys.argv[1]
 
 #nova connexió serial
 ser = serial.Serial();
-ser.port     = c.port;
+ser.port     = port;
 ser.baudrate = c.baudrate;
 ser.bytesize = c.bytesize;
 ser.parity   = c.parity;
@@ -22,6 +25,9 @@ ser.stopbits = c.stopbits;
 ser.timeout  = c.timeout;
 ser.open();
 ser.flush();
+print(ser)
+
+#print lora channel TODO
 
 #custom readline for custom EOF
 def readline(a_serial, eol=b'\r\n'):
@@ -38,23 +44,20 @@ def readline(a_serial, eol=b'\r\n'):
 
 #listen function
 def listen():
-  print('Escoltant',ser.port);
   try:
     while True:
       if(ser.in_waiting):
         rebut = None;
         try:
-          #read gateway input buffer
-          rebut = readline(ser);
+          #read input buffer gateway
+          rebut=readline(ser);
           p.processa(rebut);
         except Exception as e:
-          print(rebut)
-          print(e);
+          pass
       else:
         time.sleep(5); #wait input buffer being filled
-  except Exception as ee:
-    print("ee");
-    print(ee);
+  except Exception as e:
+    pass
 
-#listen serial port
-listen()
+#listen serial port forever
+while True: listen()
