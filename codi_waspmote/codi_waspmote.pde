@@ -42,18 +42,15 @@ void setup(){
   //get battery charging state
   chargeState = PWR.getChargingState();
 
-  //get wasp id
+  //get wasp id (2 bytes only)
   Utils.readSerialID();
   snprintf(wasp_id, 10, "%.2x%.2x", _serial_id[0], _serial_id[1]);
 
-  //init USB and show waspmote id
+  //init USB, show waspmote id
   if(debug){
     USB.ON();
     USB.print(F("Waspmote id: "));
     USB.println(wasp_id);
-    //reading time
-    //USB.println(F("Date[dow,YY/MM/DD,hh:mm:ss]"));
-    //USB.println(RTC.getTime());
   }
 
   //config microcom capacitiu detector cso overflows
@@ -149,7 +146,6 @@ void lora_setup(){
     9  500 4/5  8 -117  220  890 -
     10 500 4/5  7 -114  186  848 min range, fast data rate, minimum battery impact
   */
-  /**/
   while(e!=0){
     e=sx1272.setMode(MODE); //if mode is not 1, not working (?)
     if(debug){
@@ -195,6 +191,7 @@ void lora_setup(){
         >>> 0x5e (94)
         >>> 0x5f (95)
         >>> 0x6d (109)
+        they are the first byte of wasp_id
     */
     node_address = _serial_id[0];
     e=sx1272.setNodeAddress(node_address);
@@ -374,7 +371,6 @@ void construct_json_message(
   char t1[6]; dtostrf(temp1,1,1,t1);
   char t2[6]; dtostrf(temp2,1,1,t2);
   char t3[6]; dtostrf(temp3,1,1,t3);
-  //char vv[6]; dtostrf(volts,1,1,vv);
 
   //estructura json: {wasp_id,temp1,temp2,temp3,cso_detected,distance}
   snprintf(message, MSG_LENGTH,
@@ -405,7 +401,7 @@ void lora_send_message(char *message){
   //calculate encrypted message with ECB cipher mode and PKCS5 padding. 
   AES.encrypt(AES_128, PASSWORD, message, encrypted_message, ECB, PKCS5); 
 
-  //print encrypted message
+  //show encrypted message
   /*
   if(debug){
     printing encrypted message    
