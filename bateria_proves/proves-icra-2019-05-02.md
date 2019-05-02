@@ -15,11 +15,15 @@ Per fer les proves s'han mantingut fixes els nodes 5e0a i 5f83 i s'han anat
 movent els receptors (gateways).
 
 S'han pogut rebre dades a una distància màxima de 500 m (sense obstacles) amb
-bona recepció de dades. Per tant, per a una bona comunicació és important que no hi hagi edificis/obstacles entre node i gateway.
+bona recepció de dades. Per tant, per a una bona comunicació és important que
+no hi hagi edificis/obstacles entre node i gateway.
 
-També s'ha observat que dins el cotxe, empitjorava la comunicació. Si deixàvem l'antena gateway fora al cotxe, la recepció de dades era bona. 
+També s'ha observat que dins el cotxe empitjorava la comunicació. Si deixàvem
+l'antena gateway fora al cotxe, la recepció de dades era bona. 
 
-Per tant quan instal·lem els gateways, hem de mirar que hi hagi molts pocs o cap obstacle, i si cal, es millorarà la comunicació afegint un pigtail i posant-la a l'exterior
+Per tant quan instal·lem els gateways, hem de mirar que hi hagi molts pocs o
+cap obstacle, i si cal, es millorarà la comunicació afegint un pigtail i
+posant-la a l'exterior.
 
-
-
+![](1.png)
+![](2.png)
