@@ -13,11 +13,11 @@
 /*****************/
 /* CONFIGURATION */
 /*****************/
-#define SLEEP_INTERVAL_DRY  "00:00:01:00"      /*deep sleep interval (dry weather)*/
-#define SLEEP_INTERVAL_RAIN "00:00:01:00"      /*deep sleep interval when it is raining*/
+#define SLEEP_INTERVAL_DRY  "00:00:00:10"      /*deep sleep interval (dry weather)*/
+#define SLEEP_INTERVAL_RAIN "00:00:00:10"      /*deep sleep interval when it is raining*/
 #define NUM_LOOPS_DRY       3                  /*numero lectures seguides abans de dormir SLEEP_INTERVAL_DRY*/
 #define NUM_LOOPS_RAIN      3                  /*numero lectures seguides abans de dormir SLEEP_INTERVAL_RAIN*/
-#define POWER               'L'                /*LoRa emission energy: Low(L) High(H) Max(M)*/
+#define POWER               'M'                /*LoRa emission energy: Low(L) High(H) Max(M)*/
 #define RX_ADDRESS          1                  /*destination address (lora gateway) to send packets*/
 #define MODE                1                  /*lora setMode*/
 #define MSG_LENGTH          200                /*max length missatge json in bytes*/

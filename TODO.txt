@@ -1,2 +1,5 @@
-implementar RTC al waspmote
 implementar threads al codi gateway per processar paquets rebuts
+
+implementar canvi de potència dinàmic
+
+
