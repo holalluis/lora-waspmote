@@ -17,4 +17,6 @@ movent els receptors (gateways).
 S'han pogut rebre dades a una distància màxima de 500 m (sense obstacles) amb
 bona recepció de dades.
 
+![](1.png)
+![](2.png)
 
