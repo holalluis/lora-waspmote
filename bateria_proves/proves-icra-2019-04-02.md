@@ -1,7 +1,6 @@
 ## Proves comunicació LoRa
-
-- Lloc: icra (voltants)
 - Data: 02/05/2019
+- Lloc: icra (voltants)
 - Servidor: http://lora.h2793818.stratoserver.net/
 
 | id wasp | canal LoRa | localització nodes |
