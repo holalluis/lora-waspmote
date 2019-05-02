@@ -8,9 +8,9 @@ Servidor: http://lora.h2793818.stratoserver.net/
 
 
 | waspmote | lloc |
-|----------+------|
-| 5e0a     | parking (al costat de la llanxa) |
-| 5f83     | pis 2 (al costat màquina de vending) |
+|----------|------|
+| 5e0a     | exterior, tapa davant L05 (44 m fins al D01) |
+| 5f83     | exterior, tapa davant L05 (81 m fins al D01) |
 
 
 S'han mogut 2 gateways (amb cotxe) a una distància màxima de 500 m
