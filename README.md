@@ -46,21 +46,19 @@ Lluís Bosch (lbosch@icra.cat), projecte GESTOR, icra.
     la llibreria ja està inclosa al waspmote (DallasTemperature.h)
 
 ## notes
-  - pendent: mirar com llegir bateria de l'arduino
   - tenir en compte que la freqüència de lectura s'ha de poder modificar remotament
 
 ## Passos
-1. El gateway és l'aparell que rep les dades dels sensors. Connectar gateway a port USB i executar 'escolta.py'
+1. El gateway és l'aparell que rep les dades dels sensors. Connectar gateway a port USB i executar 'escolta.py' de la següent forma:
   ```bash
-    python escolta.py
+    sudo python3 escolta.py /dev/ttyUSB0
   ```
-  Si no troba el gateway, editar 'escolta.py' per configurar el port serial correcte
+  exemples de port depenent del sistema operatiu:
   ```python
-    ser.port='/dev/ttyUSB0'                #exemple per linux o mac
-    ser.port='COM1'                        #exemple per windows
-    ser.port='/dev/tty.usbserial-AI03NPY0' #exemple per macosx
+    port='/dev/ttyUSB0'                #exemple per linux o mac
+    port='COM1'                        #exemple per windows
+    port='/dev/tty.usbserial-AI03NPY0' #exemple per macosx
   ```
-
   Aquest programa està obert tota l'estona, ja que és el que mostra com el gateway rep les dades via LoRa.
 
 2. Executar 'python info-gateway.py' per comprovar que el gateway està escoltant correctament

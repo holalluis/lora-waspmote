@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 '''
-Configuració connexió serial del gateway a l'ordinador on estigui connectat
+Configuració connexió serial gateway lora
 '''
 
 '''serial port'''
