@@ -73,7 +73,6 @@ def query(comanda,ser):
   trama.append(0x04) #EOT byte
   trama.append(0x0a) #LF
   #trama end
-
   print('query =>',trama)
   #write
   ser.flush()
@@ -82,10 +81,7 @@ def query(comanda,ser):
 
 #query READ: get current setup of the module
 def query_read(ser): query("READ",ser)
-# ('respota =>', '\x01INFO#FREC:CH_12_868;ADDR:1;BW:BW_125;CR:CR_5;SF:SF_12;SNR:0;RSSI:-109;RSSI_PACKET:119;VER:0.13\r\n250C\x04')
-
-#query SET: set new conf for the module
-def query_set(ser): query("SET#FREC:CH_10_868;ADDR:1;BW:BW_125;CR:CR_5;SF:SF_12",ser)
+# example: ('respota =>', '\x01INFO#FREC:CH_12_868;ADDR:1;BW:BW_125;CR:CR_5;SF:SF_12;SNR:0;RSSI:-109;RSSI_PACKET:119;VER:0.13\r\n250C\x04')
 
 '''TESTS'''
 #query("SET#FREC:CH_10_868;ADDR:1;BW:BW_125;CR:CR_5;SF:SF_12",ser)
