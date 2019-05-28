@@ -7,4 +7,5 @@ def post(rebut):
     'http://lora.h2793818.stratoserver.net/post.php',
     {'data':rebut});
   print(r.status_code)
+  print(" |",rebut);
   return r.status_code

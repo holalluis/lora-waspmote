@@ -44,8 +44,8 @@ def serial_ports():
 #connexions serial per cada gateway
 serial_connections = []
 #for port in ['/dev/ttyUSB0','/dev/ttyUSB1']:
-#for port in serial_ports():
-for port in ['/dev/ttyUSB1']:
+#for port in ['/dev/ttyUSB1']:
+for port in serial_ports():
   ser          = serial.Serial()
   ser.port     = port
   ser.baudrate = c.baudrate
@@ -92,4 +92,4 @@ for ser in serial_connections:
   query_read(ser)
   query_read(ser)
   query_read(ser)
-  query("SET#FREC:CH_11_868;ADDR:1;BW:BW_125;CR:CR_5;SF:SF_12",ser)
+  query("SET#FREC:CH_12_868;ADDR:1;BW:BW_125;CR:CR_5;SF:SF_12",ser)

@@ -13,8 +13,8 @@
 /*****************/
 /* CONFIGURATION */
 /*****************/
-#define SLEEP_INTERVAL_DRY  "00:00:00:10"      /*deep sleep interval (dry weather)*/
-#define SLEEP_INTERVAL_RAIN "00:00:00:10"      /*deep sleep interval when it is raining*/
+#define SLEEP_INTERVAL_DRY  "00:00:02:00"      /*deep sleep interval (dry weather)*/
+#define SLEEP_INTERVAL_RAIN "00:00:01:00"      /*deep sleep interval when it is raining*/
 #define NUM_LOOPS_DRY       3                  /*numero lectures seguides abans de dormir SLEEP_INTERVAL_DRY*/
 #define NUM_LOOPS_RAIN      3                  /*numero lectures seguides abans de dormir SLEEP_INTERVAL_RAIN*/
 #define POWER               'M'                /*LoRa emission energy: Low(L) High(H) Max(M)*/
@@ -96,6 +96,11 @@ void lora_setup(){
     else if(strcmp(wasp_id,"272b")==0) e=sx1272.setChannel(CH_12_868);
     else if(strcmp(wasp_id,"5e0a")==0) e=sx1272.setChannel(CH_13_868);
     else if(strcmp(wasp_id,"5f83")==0) e=sx1272.setChannel(CH_14_868);
+    else{
+      USB.print(F("id error - "));
+      USB.println(wasp_id);
+      break;
+    }
 
     if(debug){
       switch(sx1272._channel){
@@ -108,7 +113,8 @@ void lora_setup(){
         case CH_16_868: USB.print(F("set channel CH_16_868: ")); break;
         case CH_17_868: USB.print(F("set channel CH_17_868: ")); break;
         default: 
-          USB.print(F("channel error"));
+          USB.print(F("channel error: "));
+          USB.println(sx1272._channel);
           break;
       }
       USB.println(e);
