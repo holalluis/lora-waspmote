@@ -4,30 +4,34 @@
     2. Sensor overflow (cso) capacitiu miocrocom
     3. Sensor distància ultrasons maxbotix
   Després envia les lectures via LoRaWAN (libelium)
-*/
 
+  Autor: Lluís Bosch (lbosch@icra.cat)
+  Projecte GESTOR 2019 http://www.icra.cat/
+*/
 #include<WaspLoRaWAN.h>
+
+/***************************************************************/
+/* REMEMBER TO TURN DEBUG TO "false" WHEN NO USB IS CONNECTED! */
+/***************************************************************/
+#define DEBUG true /*turn on usb logging (debug mode)*/
 
 /*****************/
 /* CONFIGURATION */
 /*****************/
-
 //constants
 #define APP_EUI             "0102030405060708"                 /*app identifier (set in gateway conf)*/
 #define APP_KEY             "01020304050607080910111213141516" //app password   (set in gateway conf)
-#define DEBUG               true               /*usb debugging active*/
-#define SLEEP_INTERVAL_DRY  "00:00:02:00"      /*deep sleep interval (dry weather)*/
-#define SLEEP_INTERVAL_RAIN "00:00:01:00"      /*deep sleep interval when it is raining*/
-#define NUM_LOOPS_DRY       2                  /*lectures seguides abans de dormir SLEEP_INTERVAL_DRY*/
-#define NUM_LOOPS_RAIN      3                  /*lectures seguides abans de dormir SLEEP_INTERVAL_RAIN*/
-#define MSG_LENGTH          200                /*max length json message in bytes*/
-#define PIN_MICROCOM        DIGITAL1           /*pin microcom (cso detection)*/
-#define PIN_T1              DIGITAL4           /*pin sensor temperatura 1*/
-#define PIN_T2              DIGITAL6           /*pin sensor temperatura 2*/
-#define PIN_T3              DIGITAL8           /*pin sensor temperatura 3*/
-#define MB_READINGS         10                 /*maxbotix readings each loop and averaged*/
-#define TIMEOUT             1000               /*ms maxbotix serial read timeout*/
-
+#define SLEEP_INTERVAL_DRY  "00:00:02:00" /*deep sleep interval (dry weather)*/
+#define SLEEP_INTERVAL_RAIN "00:00:01:00" /*deep sleep interval when it is raining*/
+#define NUM_LOOPS_DRY       2             /*lectures seguides abans de dormir SLEEP_INTERVAL_DRY*/
+#define NUM_LOOPS_RAIN      3             /*lectures seguides abans de dormir SLEEP_INTERVAL_RAIN*/
+#define MSG_LENGTH          200           /*max length json message in bytes*/
+#define PIN_MICROCOM        DIGITAL1      /*pin microcom (cso detection)*/
+#define PIN_T1              DIGITAL4      /*pin sensor temperatura 1*/
+#define PIN_T2              DIGITAL6      /*pin sensor temperatura 2*/
+#define PIN_T3              DIGITAL8      /*pin sensor temperatura 3*/
+#define MB_READINGS         10            /*maxbotix readings each loop and averaged*/
+#define TIMEOUT             1000          /*ms maxbotix serial read timeout*/
 //variables
 char           wasp_id[5];              /*waspmote id (4 chars)*/
 char           device_eui[17];          /*000000000000 + waspmote id (16 chars)*/
@@ -42,12 +46,12 @@ int8_t         error           = -1;    //error variable
 void setup(){
   //get wasp id (2 first bytes in hexadecimal)
   Utils.readSerialID();
-  snprintf(wasp_id,    10, "%.2x%.2x", _serial_id[0], _serial_id[1]);
+  snprintf(wasp_id, 10, "%.2x%.2x", _serial_id[0], _serial_id[1]);
 
   //set device eui using wasp id
   snprintf(device_eui, 17, "000000000000%.2x%.2x", _serial_id[0], _serial_id[1]);
 
-  //init USB, show waspmote id
+  //init USB, show waspmote id and device eui
   if(DEBUG){
     USB.ON();
     USB.print(F("Waspmote id: "));
@@ -133,9 +137,8 @@ void loop(){
     }
   }
 
-  //read maxbotix distance sensor n times
+  //read maxbotix distance sensor MB_READINGS times
   if(DEBUG) USB.println(F("Reading distance (cm)..."));
-
   unsigned short distances[MB_READINGS];
   for(int i=0;i<MB_READINGS;i++){
     distances[i]=0;
@@ -150,11 +153,11 @@ void loop(){
     }
   }
 
-  //readings done: switch off power
+  //maxbotix readings done: switch off power
   PWR.setSensorPower(SENS_3V3,SENS_OFF);
   PWR.setSensorPower(SENS_5V,SENS_OFF);
 
-  //compute distances measured average
+  //compute average of distances measured by maxbotix
   unsigned short distance = computeAverage(distances,10);
   if(DEBUG) USB.println(distance);
 
@@ -170,7 +173,7 @@ void loop(){
     volts
   );
 
-  //send message
+  //send message to lorawan network
   lorawan_send_message(message);
 
   //add 1 to current loop counter
@@ -187,7 +190,7 @@ void loop(){
     USB.println(F("============================="));
   }
 
-  //check if we can start deep sleep
+  //check if waspmote can start deep sleeping
   if(num_loop_actual >= num_loops){
     if(DEBUG){
       USB.print(F("Entering deep sleep... "));
@@ -197,7 +200,7 @@ void loop(){
     //reset num loop actual
     num_loop_actual = 0;
 
-    //start deep sleep
+    //start deep sleeping
     PWR.deepSleep(
       its_raining ? SLEEP_INTERVAL_RAIN : SLEEP_INTERVAL_DRY,
       RTC_OFFSET, RTC_ALM1_MODE1, ALL_OFF
@@ -209,8 +212,9 @@ void loop(){
       USB.println();
     }
   }
+  //end deep sleep
 
-  //call setup() to switch on power again
+  //call setup() again to power sensors
   setup();
 }
 
@@ -279,51 +283,65 @@ void construct_json_message(
 void lorawan_setup(){
   //1. switch lorawan on
   error = LoRaWAN.ON(SOCKET0);
-  if(error==0){ USB.println(F("1. Switch LoRaWAN ON OK"));
-  }else{        USB.print(F("1. Switch LoRaWAN ON error = "));
-                USB.println(error, DEC);
+  if(DEBUG){
+    if(error==0){ USB.println(F("1. Switch LoRaWAN ON OK"));
+    }else{        USB.print(F("1. Switch LoRaWAN ON error = "));
+                  USB.println(error, DEC);
+    }
   }
 
   //2. set device EUI
   error = LoRaWAN.setDeviceEUI(device_eui);
-  if(error==0){ USB.println(F("2. Device EUI set OK"));
-  }else{        USB.print(F("2. Device EUI set error = "));
-                USB.println(error, DEC);
+  if(DEBUG){
+    if(error==0){ USB.println(F("2. Device EUI set OK"));
+    }else{        USB.print(F("2. Device EUI set error = "));
+                  USB.println(error, DEC);
+    }
   }
 
   //3. Set Application EUI
   error = LoRaWAN.setAppEUI(APP_EUI);
-  if(error==0){ USB.println(F("3. Application EUI set OK"));
-  }else{        USB.print(F("3. Application EUI set error = "));
-                USB.println(error, DEC);
+  if(DEBUG){
+    if(error==0){ USB.println(F("3. Application EUI set OK"));
+    }else{        USB.print(F("3. Application EUI set error = "));
+                  USB.println(error, DEC);
+    }
   }
 
   //4. Set Application Session Key
   error = LoRaWAN.setAppKey(APP_KEY);
-  if(error==0){ USB.println(F("4. Application Key set OK"));
-  }else{        USB.print(F("4. Application Key set error = "));
-                USB.println(error, DEC);
+  if(DEBUG){
+    if(error==0){ USB.println(F("4. Application Key set OK"));
+    }else{        USB.print(F("4. Application Key set error = "));
+                  USB.println(error, DEC);
+    }
   }
 
   //5. Join OTAA to negotiate keys with the server
   error = LoRaWAN.joinOTAA();
-  if(error==0){ USB.println(F("5. Join network OK"));
-  }else{        USB.print(F("5. Join network error = "));
-                USB.println(error, DEC);
+  if(DEBUG){
+    if(error==0){ USB.println(F("5. Join network OK"));
+    }else{        USB.print(F("5. Join network error = "));
+                  USB.println(error, DEC);
+    }
   }
 
   //6. Save configuration
   error = LoRaWAN.saveConfig();
-  if(error==0){ USB.println(F("6. Save configuration OK"));
-  }else{        USB.print(F("6. Save configuration error = "));
-                USB.println(error, DEC);
+  if(DEBUG){
+    if(error==0){ USB.println(F("6. Save configuration OK"));
+    }else{        USB.print(F("6. Save configuration error = "));
+                  USB.println(error, DEC);
+    }
   }
 
   // 7. Switch off
   error = LoRaWAN.OFF(SOCKET0);
-  if(error==0){ USB.println(F("7. Switch LoRaWAN OFF OK"));
-  }else{        USB.print(F("7. Switch LoRaWAN OFF error = "));
-                USB.println(error, DEC);
+  if(DEBUG){
+    if(error==0){ USB.println(F("7. Switch LoRaWAN OFF OK"));
+    }else{        USB.print(F("7. Switch LoRaWAN OFF error = "));
+                  USB.println(error, DEC);
+    }
   }
 
   /*
@@ -353,18 +371,22 @@ void lorawan_send_message(char *message){
   if(error==0) {
     if(DEBUG) USB.println(F("Join network OK"));
 
-    //sendConfirmed(port, data)
-    /*port: lorawan port to use in backend: from 1 to 223*/
-
     char hexstring[MSG_LENGTH];
     convert_json_to_hexstring(message, hexstring);
+
+    //sendConfirmed(port, payload)
+    /*port: lorawan port to use in backend: from 1 to 223*/
     error = LoRaWAN.sendConfirmed(3, hexstring);
-    /* Error messages:
-     * '6' : Module hasn't joined a network
-     * '5' : Sending error
-     * '4' : Error with data length
-     * '2' : Module didn't response
-     * '1' : Module communication error
+    /* Error messages in sendConfirmed(port, payload):
+       LORAWAN_ANSWER_OK      =  0
+       LORAWAN_ANSWER_ERROR   =  1  Module communication error
+       LORAWAN_NO_ANSWER      =  2  Module didn't response
+       LORAWAN_INIT_ERROR     =  3
+       LORAWAN_LENGTH_ERROR   =  4  Error with data length
+       LORAWAN_SENDING_ERROR  =  5  Sending error
+       LORAWAN_NOT_JOINED     =  6  Module hasn't joined a network
+       LORAWAN_INPUT_ERROR    =  7
+       LORAWAN_VERSION_ERROR  =  8
     **/
 
     //if ACK is received
@@ -424,7 +446,7 @@ void convert_json_to_hexstring(char *message, char *hexstring){
   }
 
   //convert char to int (copy also '\0')
-  for(int i=0; i<=size; i++){
+  for(int i=0; i<size; i++){
     buffer2[i] = (int)message[i]; //convert char to int
     if(DEBUG){
       continue; //view byte per byte disabled
@@ -438,7 +460,8 @@ void convert_json_to_hexstring(char *message, char *hexstring){
     }
   }
 
-  //convert from {0x48 0x65 0x6C ...} to "48656C..."
+  //convert int array to string in hexadecimal
+  //example: from {0x48 0x65 0x6C ...} to "48656C..."
   Utils.hex2str(buffer2, hexstring, size);
   if(DEBUG){
     USB.print("Length of hexstring: ");
@@ -447,9 +470,10 @@ void convert_json_to_hexstring(char *message, char *hexstring){
   }
 }
 
-//do nothing (for errors)
+/*DEBUGGING UTILITIES*/
+//do nothing (to isolate errors)
 void do_nothing(){
-  while(true){
-    delay(10000);
-  }
+  USB.println("================");
+  USB.println("doing nothing...");
+  while(true){delay(10000);}
 }
