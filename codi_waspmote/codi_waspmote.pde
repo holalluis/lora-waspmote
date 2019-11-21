@@ -3,54 +3,57 @@
     1. Sensors temperatura (3 DS1820)
     2. Sensor overflow (cso) capacitiu miocrocom
     3. Sensor distància ultrasons maxbotix
-  Després envia les lectures via LoRa SX1272 (libelium)
-  Es reben els paquets a gateway que també té un SX1272, i es llegeixen per USB
-  serial (veure codi carpeta "gateway").
+  Després envia les lectures via LoRaWAN (libelium)
 */
-#include<WaspSX1272.h>
-#include<WaspAES.h>
+
+#include<WaspLoRaWAN.h>
 
 /*****************/
 /* CONFIGURATION */
 /*****************/
+
+//constants
+#define APP_EUI             "0102030405060708"                 /*app identifier (set in gateway conf)*/
+#define APP_KEY             "01020304050607080910111213141516" //app password   (set in gateway conf)
+#define DEBUG               true               /*usb debugging active*/
 #define SLEEP_INTERVAL_DRY  "00:00:02:00"      /*deep sleep interval (dry weather)*/
 #define SLEEP_INTERVAL_RAIN "00:00:01:00"      /*deep sleep interval when it is raining*/
-#define NUM_LOOPS_DRY       3                  /*numero lectures seguides abans de dormir SLEEP_INTERVAL_DRY*/
-#define NUM_LOOPS_RAIN      3                  /*numero lectures seguides abans de dormir SLEEP_INTERVAL_RAIN*/
-#define POWER               'M'                /*LoRa emission energy: Low(L) High(H) Max(M)*/
-#define RX_ADDRESS          1                  /*destination address (lora gateway) to send packets*/
-#define MODE                1                  /*lora setMode*/
-#define MSG_LENGTH          200                /*max length missatge json in bytes*/
-#define PASSWORD            "libeliumlibelium" /*private a 16-Byte key to encrypt message*/
+#define NUM_LOOPS_DRY       2                  /*lectures seguides abans de dormir SLEEP_INTERVAL_DRY*/
+#define NUM_LOOPS_RAIN      3                  /*lectures seguides abans de dormir SLEEP_INTERVAL_RAIN*/
+#define MSG_LENGTH          200                /*max length json message in bytes*/
 #define PIN_MICROCOM        DIGITAL1           /*pin microcom (cso detection)*/
 #define PIN_T1              DIGITAL4           /*pin sensor temperatura 1*/
 #define PIN_T2              DIGITAL6           /*pin sensor temperatura 2*/
 #define PIN_T3              DIGITAL8           /*pin sensor temperatura 3*/
 #define MB_READINGS         10                 /*maxbotix readings each loop and averaged*/
 #define TIMEOUT             1000               /*ms maxbotix serial read timeout*/
-int            channel            = NULL;      /*depends on wasp_id*/
-bool           debug              = 1;         /*usb debugging*/
-unsigned short node_address;                   /*each node must have different address*/
-char           wasp_id[5];                     /*waspmote id (4 chars)*/
-bool           chargeState        = false;     /*is battery charging?*/
-unsigned int   paquets_enviats    = 0;         /*number of sent packets (tx)*/
-unsigned int   paquets_rebuts     = 0;         /*number of ackd packets (rx)*/
-unsigned short numero_loop_actual = 0;         /*current loop number before deep sleep*/
-bool           its_raining        = false;     /*it is raining?*/
+
+//variables
+char           wasp_id[5];              /*waspmote id (4 chars)*/
+char           device_eui[17];          /*000000000000 + waspmote id (16 chars)*/
+bool           chargeState     = false; /*is battery charging?*/
+unsigned int   paquets_enviats = 0;     /*number of sent packets (tx)*/
+unsigned int   paquets_rebuts  = 0;     /*number of ackd packets (rx)*/
+bool           its_raining     = false; /*it is raining?*/
+unsigned short num_loops       = 0;     /*lectures que es faran abans de dormir*/
+unsigned short num_loop_actual = 0;     /*lectura actual abans de dormir*/
+int8_t         error           = -1;    //error variable
 
 void setup(){
-  //get battery charging state
-  chargeState = PWR.getChargingState();
-
-  //get wasp id (2 bytes only)
+  //get wasp id (2 first bytes in hexadecimal)
   Utils.readSerialID();
-  snprintf(wasp_id, 10, "%.2x%.2x", _serial_id[0], _serial_id[1]);
+  snprintf(wasp_id,    10, "%.2x%.2x", _serial_id[0], _serial_id[1]);
+
+  //set device eui using wasp id
+  snprintf(device_eui, 17, "000000000000%.2x%.2x", _serial_id[0], _serial_id[1]);
 
   //init USB, show waspmote id
-  if(debug){
+  if(DEBUG){
     USB.ON();
     USB.print(F("Waspmote id: "));
     USB.println(wasp_id);
+    USB.print(F("device eui: "));
+    USB.println(device_eui);
   }
 
   //config microcom capacitiu detector cso overflows
@@ -60,166 +63,31 @@ void setup(){
   Utils.setMuxAux1();
   beginSerial(9600,1);
 
-  //init power pins 
+  //init power pins
   PWR.setSensorPower(SENS_5V,  SENS_ON);
   PWR.setSensorPower(SENS_3V3, SENS_ON);
 
-  //setup lora chip sx1272
-  lora_setup();
+  //setup lorawan chip
+  lorawan_setup();
 
   //show sleep duration
-  if(debug){
+  if(DEBUG){
     USB.println(F("--------------------------------"));
     USB.print(F("SLEEP_INTERVAL_DRY:  "));USB.println(SLEEP_INTERVAL_DRY);
     USB.print(F("SLEEP_INTERVAL_RAIN: "));USB.println(SLEEP_INTERVAL_RAIN);
     USB.println(F("--------------------------------"));
   }
+
+  //wait 1 second
   delay(1000);
 }
 
-void lora_setup(){
-  sx1272.ON();
-  int8_t e=-1; //sx1272 status
-
-  /*
-    868 MHz channels (8):
-      CH_10_868 CH_11_868 CH_12_868 CH_13_868 
-      CH_14_868 CH_15_868 CH_16_868 CH_17_868
-  */
-  while(e!=0){
-    /*
-      wasp_id | channel
-      --------+----------
-    */
-    if     (strcmp(wasp_id,"2f76")==0) e=sx1272.setChannel(CH_10_868);
-    else if(strcmp(wasp_id,"6d31")==0) e=sx1272.setChannel(CH_11_868);
-    else if(strcmp(wasp_id,"272b")==0) e=sx1272.setChannel(CH_12_868);
-    else if(strcmp(wasp_id,"5e0a")==0) e=sx1272.setChannel(CH_13_868);
-    else if(strcmp(wasp_id,"5f83")==0) e=sx1272.setChannel(CH_14_868);
-    else{
-      USB.print(F("id error - "));
-      USB.println(wasp_id);
-      break;
-    }
-
-    if(debug){
-      switch(sx1272._channel){
-        case CH_10_868: USB.print(F("set channel CH_10_868: ")); break;
-        case CH_11_868: USB.print(F("set channel CH_11_868: ")); break;
-        case CH_12_868: USB.print(F("set channel CH_12_868: ")); break;
-        case CH_13_868: USB.print(F("set channel CH_13_868: ")); break;
-        case CH_14_868: USB.print(F("set channel CH_14_868: ")); break;
-        case CH_15_868: USB.print(F("set channel CH_15_868: ")); break;
-        case CH_16_868: USB.print(F("set channel CH_16_868: ")); break;
-        case CH_17_868: USB.print(F("set channel CH_17_868: ")); break;
-        default: 
-          USB.print(F("channel error: "));
-          USB.println(sx1272._channel);
-          break;
-      }
-      USB.println(e);
-    }
-    if(e) delay(1000);
-  }
-  e=-1;
-
-  /*set implicit or explicit header*/
-  while(e!=0){
-    e=sx1272.setHeaderON();
-    if(debug){
-      USB.print("set header on: ");
-      USB.println(e);
-    }
-    if(e) delay(1000);
-  }
-  e=-1;
-
-  /*mode: 1 to 10*/
-  /*
-    Mode BW CR SF Sensitivity (dB) 
-      Transmission time (ms) for a 100-byte packet sent
-        Transmission time (ms) for a 100-byte packet sent and ACK received
-          Comments
-    //--
-    1  125 4/5 12 -134 4245 5781 max range, slow data rate
-    2  250 4/5 12 -131 2193 3287 -
-    3  125 4/5 10 -129 1208 2120 -
-    4  500 4/5 12 -128 1167 2040 -
-    5  250 4/5 10 -126  674 1457 -
-    6  500 4/5 11 -125  715 1499 -
-    7  250 4/5  9 -123  428 1145 -
-    8  500 4/5  9 -120  284  970 -
-    9  500 4/5  8 -117  220  890 -
-    10 500 4/5  7 -114  186  848 min range, fast data rate, minimum battery impact
-  */
-  while(e!=0){
-    e=sx1272.setMode(MODE); //if mode is not 1, not working (?)
-    if(debug){
-      USB.print(F("set mode "));
-      USB.print(MODE);
-      USB.print(": ");
-      USB.println(e);
-    }
-    if(e) delay(1000);
-  }
-  e=-1;
-
-  /*set CRC on or off*/
-  while(e!=0){
-    e=sx1272.setCRC_ON();
-    if(debug){
-      USB.print("set crc on: ");
-      USB.println(e);
-    }
-    if(e) delay(1000);
-  }
-  e=-1;
-
-  /*set output power (Max, High or Low)*/
-  while(e!=0){
-    e=sx1272.setPower(POWER);
-    if(debug){
-      USB.print(F("set power "));
-      USB.print(POWER);
-      USB.print(F(":"));
-      USB.println(e);
-    }
-    if(e) delay(1000);
-  }
-  e=-1;
-
-  /*set node (sender) address value: from 2 to 255*/
-  while(e!=0){
-    /*
-      the addresses of the devices are:
-        >>> 0x27 (39)
-        >>> 0x2f (47)
-        >>> 0x5e (94)
-        >>> 0x5f (95)
-        >>> 0x6d (109)
-        they are the first byte of wasp_id
-    */
-    node_address = _serial_id[0];
-    e=sx1272.setNodeAddress(node_address);
-    if(debug){
-      USB.print(F("set node address "));
-      USB.print(node_address);
-      USB.print(F(" (0x"));
-      USB.print(node_address,HEX);
-      USB.print(F(")"));
-      USB.print(F(": "));
-      USB.println(e);
-    }
-    if(e) delay(1000);
-  }
-}
-
 void loop(){
-  //read battery level
+  //read battery level and volts
   int   battery = PWR.getBatteryLevel(); //%
   float volts   = PWR.getBatteryVolts(); //V
 
-  if(debug){
+  if(DEBUG){
     //show remaining battery level
     USB.print(F("Battery Level: "));
     USB.print(battery);
@@ -232,27 +100,31 @@ void loop(){
 
     //show battery charging state. This is valid for both USB and Solar panel
     //if any of those ports are used the charging state will be true
+    chargeState = PWR.getChargingState();
     USB.print(F("Battery charging state: "));
     if(chargeState){
       USB.println(F("Battery is charging"));
     }else{
       USB.println(F("Battery is not charging"));
     }
+
     USB.println(F("--------------------------------"));
   }
 
   //read DS1820 temperature (ºC)
-  if(debug) USB.print(F("Reading temperature (ºC)... "));
-  float temp1 = Utils.readTempDS1820(PIN_T1); if(debug){ USB.print(  temp1); USB.print(", "); }
-  float temp2 = Utils.readTempDS1820(PIN_T2); if(debug){ USB.print(  temp2); USB.print(", "); }
-  float temp3 = Utils.readTempDS1820(PIN_T3); if(debug){ USB.println(temp3); }
- 
+  if(DEBUG) USB.print(F("Reading temperature (ºC)... "));
+  float temp1 = Utils.readTempDS1820(PIN_T1); if(DEBUG){ USB.print(  temp1); USB.print(", "); }
+  float temp2 = Utils.readTempDS1820(PIN_T2); if(DEBUG){ USB.print(  temp2); USB.print(", "); }
+  float temp3 = Utils.readTempDS1820(PIN_T3); if(DEBUG){ USB.println(temp3); }
+
   //read microcom overflow detector
-  if(debug) USB.print(F("Reading cso overflows (true/false)..."));
+  if(DEBUG) USB.print(F("Reading cso overflows (true/false)..."));
   bool cso_detected = digitalRead(PIN_MICROCOM); //true/false overflow
+
+  //if cso detected --> it is raining
   its_raining = cso_detected;
 
-  if(debug){
+  if(DEBUG){
     USB.print(cso_detected);
     if(its_raining){
       USB.println(F(" [RAINING (or microcom sensor unplugged)]"));
@@ -262,7 +134,7 @@ void loop(){
   }
 
   //read maxbotix distance sensor n times
-  if(debug) USB.println(F("Reading distance (cm)..."));
+  if(DEBUG) USB.println(F("Reading distance (cm)..."));
 
   unsigned short distances[MB_READINGS];
   for(int i=0;i<MB_READINGS;i++){
@@ -272,7 +144,7 @@ void loop(){
       if(millis()-timeout > TIMEOUT) break;
       distances[i] = readSensorSerial();
     }
-    if(debug){ 
+    if(DEBUG){
       USB.print(distances[i]);
       USB.print(i<MB_READINGS-1 ? ",":": ");
     }
@@ -284,51 +156,61 @@ void loop(){
 
   //compute distances measured average
   unsigned short distance = computeAverage(distances,10);
-  if(debug) USB.println(distance);
+  if(DEBUG) USB.println(distance);
 
   //construct string json with all readings done so far
   char message[MSG_LENGTH];
+
   construct_json_message(
-    message, 
-    temp1, temp2, temp3, cso_detected, distance,
-    battery, volts
+    message,
+    temp1, temp2, temp3,
+    cso_detected,
+    distance,
+    battery,
+    volts
   );
 
-  //send string json to gateway via lora
-  if(debug) lora_send_message(message);
+  //send message
+  lorawan_send_message(message);
 
   //add 1 to current loop counter
-  numero_loop_actual++;
+  num_loop_actual++;
 
-  if(debug){
+  //set the number of loops done before sleeping
+  num_loops = its_raining ? NUM_LOOPS_RAIN : NUM_LOOPS_DRY;
+
+  if(DEBUG){
     USB.print("loop before deep sleep: ");
-    USB.print(numero_loop_actual);
+    USB.print(num_loop_actual);
     USB.print("/");
-    USB.println(its_raining ? NUM_LOOPS_RAIN : NUM_LOOPS_DRY);
+    USB.println(num_loops);
     USB.println(F("============================="));
   }
 
   //check if we can start deep sleep
-  if(
-    numero_loop_actual >= (its_raining ? NUM_LOOPS_RAIN : NUM_LOOPS_DRY)
-  ){
-    //start deep sleep
-    if(debug){
+  if(num_loop_actual >= num_loops){
+    if(DEBUG){
       USB.print(F("Entering deep sleep... "));
       USB.println(its_raining ? SLEEP_INTERVAL_RAIN : SLEEP_INTERVAL_DRY);
     }
-    numero_loop_actual = 0;
-    PWR.deepSleep( 
-      its_raining ? SLEEP_INTERVAL_RAIN : SLEEP_INTERVAL_DRY, 
+
+    //reset num loop actual
+    num_loop_actual = 0;
+
+    //start deep sleep
+    PWR.deepSleep(
+      its_raining ? SLEEP_INTERVAL_RAIN : SLEEP_INTERVAL_DRY,
       RTC_OFFSET, RTC_ALM1_MODE1, ALL_OFF
     );
-    if(debug){
+
+    //end deep sleep
+    if(DEBUG){
       USB.println(F("wake up!"));
       USB.println();
     }
   }
 
-  //call setup() to switch on power
+  //call setup() to switch on power again
   setup();
 }
 
@@ -366,11 +248,14 @@ unsigned short computeAverage(unsigned short *distances, int length){
 }
 
 //construct json string message
-void construct_json_message( 
+void construct_json_message(
     char *message,
-    float temp1, float temp2, float temp3, bool cso_detected, unsigned short distance,
+    float temp1, float temp2, float temp3,
+    bool cso_detected,
+    unsigned short distance,
     int battery, float volts
   ){
+
   //use dtostrf() to convert from float to string:
   //first '1' refers to minimum width
   //second '1' refers to number of decimals
@@ -378,78 +263,193 @@ void construct_json_message(
   char t2[6]; dtostrf(temp2,1,1,t2);
   char t3[6]; dtostrf(temp3,1,1,t3);
 
-  //estructura json: {wasp_id,temp1,temp2,temp3,cso_detected,distance}
+  //estructura json: {wasp_id,t1,t2,t3,cso_detected,distance}
   snprintf(message, MSG_LENGTH,
-    "{wid:\"%s\",T:[%s,%s,%s],cso:%d,d:%d,bat:%d,pwr:\"%c\",tx:%d}", 
+    "{wid:\"%s\",T:[%s,%s,%s],cso:%d,d:%d,bat:%d,tx:%d}",
     wasp_id,
-    t1, t2, t3, cso_detected, distance,
-    battery, POWER,
+    t1, t2, t3,
+    cso_detected,
+    distance,
+    battery,
     paquets_enviats++
   );
+}
 
-  //make sure message length is multiple of 16 (for AES)
-  while(strlen(message)%16 !=0){
-    message = strcat(message," ");
+//setup lorawan connection
+void lorawan_setup(){
+  //1. switch lorawan on
+  error = LoRaWAN.ON(SOCKET0);
+  if(error==0){ USB.println(F("1. Switch LoRaWAN ON OK"));
+  }else{        USB.print(F("1. Switch LoRaWAN ON error = "));
+                USB.println(error, DEC);
+  }
+
+  //2. set device EUI
+  error = LoRaWAN.setDeviceEUI(device_eui);
+  if(error==0){ USB.println(F("2. Device EUI set OK"));
+  }else{        USB.print(F("2. Device EUI set error = "));
+                USB.println(error, DEC);
+  }
+
+  //3. Set Application EUI
+  error = LoRaWAN.setAppEUI(APP_EUI);
+  if(error==0){ USB.println(F("3. Application EUI set OK"));
+  }else{        USB.print(F("3. Application EUI set error = "));
+                USB.println(error, DEC);
+  }
+
+  //4. Set Application Session Key
+  error = LoRaWAN.setAppKey(APP_KEY);
+  if(error==0){ USB.println(F("4. Application Key set OK"));
+  }else{        USB.print(F("4. Application Key set error = "));
+                USB.println(error, DEC);
+  }
+
+  //5. Join OTAA to negotiate keys with the server
+  error = LoRaWAN.joinOTAA();
+  if(error==0){ USB.println(F("5. Join network OK"));
+  }else{        USB.print(F("5. Join network error = "));
+                USB.println(error, DEC);
+  }
+
+  //6. Save configuration
+  error = LoRaWAN.saveConfig();
+  if(error==0){ USB.println(F("6. Save configuration OK"));
+  }else{        USB.print(F("6. Save configuration error = "));
+                USB.println(error, DEC);
+  }
+
+  // 7. Switch off
+  error = LoRaWAN.OFF(SOCKET0);
+  if(error==0){ USB.println(F("7. Switch LoRaWAN OFF OK"));
+  }else{        USB.print(F("7. Switch LoRaWAN OFF error = "));
+                USB.println(error, DEC);
+  }
+
+  /*
+  Module configured.
+  After joining through OTAA, the module and the network exchanged the Network
+  Session Key and the Application Session Key which are needed to perform
+  communications. After that, 'ABP mode' is used to join the network and send
+  messages after powering on the module
+  */
+}
+
+//send message via lorawan
+void lorawan_send_message(char *message){
+  //1. switch lorawan on
+  error = LoRaWAN.ON(SOCKET0);
+  if(DEBUG){
+    if(error==0){
+      USB.println(F("Switch LoRaWAN ON: OK"));
+    }else{
+      USB.print(F("Switch LoRaWAN ON: error = "));
+      USB.println(error, DEC);
+    }
+  }
+
+  //2. join network
+  error = LoRaWAN.joinABP();
+  if(error==0) {
+    if(DEBUG) USB.println(F("Join network OK"));
+
+    //sendConfirmed(port, data)
+    /*port: lorawan port to use in backend: from 1 to 223*/
+
+    char hexstring[MSG_LENGTH];
+    convert_json_to_hexstring(message, hexstring);
+    error = LoRaWAN.sendConfirmed(3, hexstring);
+    /* Error messages:
+     * '6' : Module hasn't joined a network
+     * '5' : Sending error
+     * '4' : Error with data length
+     * '2' : Module didn't response
+     * '1' : Module communication error
+    **/
+
+    //if ACK is received
+    if(error==0) paquets_rebuts++;
+
+    if(DEBUG){
+      if(error==0){
+        USB.println(F("Send Confirmed packet OK"));
+        if(LoRaWAN._dataReceived==true){
+          USB.print(F("   There's data on port number "));
+          USB.print(LoRaWAN._port,DEC);
+          USB.print(F(".\r\n   Data: "));
+          USB.println(LoRaWAN._data);
+        }
+      }else{
+        USB.print(F("Send Confirmed packet error = "));
+        USB.println(error, DEC);
+      }
+    }
+  }else{
+    if(DEBUG){
+      //show error joining network via ABP
+      USB.print(F("Join network error = "));
+      USB.println(error, DEC);
+    }
+  }
+
+  //4. switch off
+  error = LoRaWAN.OFF(SOCKET0);
+  if(DEBUG){
+    if(error==0){
+      USB.println(F("Switch LoRaWAN OFF OK"));
+    }else{
+      USB.print(F("Switch LoRaWAN OFF error = "));
+      USB.println(error, DEC);
+    }
   }
 }
 
-//encrypt and send message via lora
-void lora_send_message(char *message){
-  //encrypt message
-  if(debug){ USB.print(F("Paquet:")); USB.println(message); }
+//transform ascii string to hexadecimal string
+//for example: "hola" to "686f6c61"
+void convert_json_to_hexstring(char *message, char *hexstring){
+  //char  buffer1[] = "hola";   //ascii "hola"
+  uint8_t buffer2[MSG_LENGTH];  //bytes {0x68 0x6f 0x6c 61}
 
-  //calculate length in Bytes of the encrypted message 
-  uint16_t encrypted_length = AES.sizeOfBlocks(message);
-
-  //new buffer for encrypted message
-  uint8_t encrypted_message[MSG_LENGTH];
-
-  //calculate encrypted message with ECB cipher mode and PKCS5 padding. 
-  AES.encrypt(AES_128, PASSWORD, message, encrypted_message, ECB, PKCS5); 
-
-  //show encrypted message
-  /*
-  if(debug){
-    printing encrypted message    
-    USB.print(F("Encrypted:")); 
-    AES.printMessage(encrypted_message, encrypted_length); 
-  }
-  */
-
-  //send packet before ending a timeout and waiting for an ACK response  
-  if(debug){
-    USB.print(F("Sending data (LoRa "));
-    USB.print(F("RX "));
-    USB.print(RX_ADDRESS);
-    USB.print(F(", "));
-    USB.print(encrypted_length);
-    USB.println(F(" bytes)"));
+  //clear buffer hexstring
+  for(int i=0;i<MSG_LENGTH;i++){
+    hexstring[i]=0x0;
   }
 
-  //send encrypted packet via lora
-  //state = 9 --> The ACK lost (no data available)
-  //state = 8 --> The ACK lost
-  //state = 7 --> The ACK destination incorrectly received
-  //state = 6 --> The ACK source incorrectly received
-  //state = 5 --> The ACK number incorrectly received
-  //state = 4 --> The ACK length incorrectly received
-  //state = 3 --> N-ACK received
-  //state = 2 --> The command has not been executed
-  //state = 1 --> There has been an error while executing the command
-  //state = 0 --> The command has been executed with no errors
-  int8_t e;
-  e = sx1272.sendPacketTimeoutACKRetries(RX_ADDRESS, encrypted_message, encrypted_length);
+  //get length of message
+  uint16_t size = strlen(message);
+  if(DEBUG){
+    USB.print("Length of message: ");
+    USB.println(strlen(message));
+    USB.println(message);
+  }
 
-  //if ACK is received
-  if(e==0) paquets_rebuts++;
+  //convert char to int (copy also '\0')
+  for(int i=0; i<=size; i++){
+    buffer2[i] = (int)message[i]; //convert char to int
+    if(DEBUG){
+      continue; //view byte per byte disabled
+      USB.print(i);
+      USB.print(" ");
+      USB.print(message[i]);
+      USB.print(" ");
+      USB.print(buffer2[i]);
+      USB.print(" ");
+      USB.println(buffer2[i],HEX);
+    }
+  }
 
-  //check sending status
-  if(debug){
-    if(e==0){ USB.println(F("--> Packet sent OK")); }
-    else{
-      USB.println(F("--> Error sending the packet"));  
-      USB.print(F("state: "));
-      USB.println(e, DEC);
-    } 
+  //convert from {0x48 0x65 0x6C ...} to "48656C..."
+  Utils.hex2str(buffer2, hexstring, size);
+  if(DEBUG){
+    USB.print("Length of hexstring: ");
+    USB.println(strlen(hexstring));
+    USB.println(hexstring);
+  }
+}
+
+//do nothing (for errors)
+void do_nothing(){
+  while(true){
+    delay(10000);
   }
 }
