@@ -1,55 +1,58 @@
 /*
-  Waspmote llegeix:
-    1. Sensors temperatura (3 DS1820)
-    2. Sensor overflow (cso) capacitiu miocrocom
-    3. Sensor distància ultrasons maxbotix
-  Després envia les lectures via LoRaWAN (libelium)
+  Waspmote reads:
+    1. Sensors temperature (3 DS1820)
+    2. Sensor overflow (cso) miocrocom (capacitive 'shoe')
+    3. Sensor distance maxbotix
 
-  Autor: Lluís Bosch (lbosch@icra.cat)
-  Projecte GESTOR 2019 http://www.icra.cat/
+  Then, sends the read values over LoRaWAN (libelium)
+
+  Author: Lluís Bosch (lbosch@icra.cat)
+  Project GESTOR 2019 http://www.icra.cat/
 */
 #include<WaspLoRaWAN.h>
 
-/***************************************************************/
-/* REMEMBER TO TURN DEBUG TO "false" WHEN NO USB IS CONNECTED! */
-/***************************************************************/
-#define DEBUG true /*turn on usb logging (debug mode)*/
+//=============================================================================
+// CONFIGURATION
+//=============================================================================
+//DEBUG MODE (set to "false" if usb is not connected)
+#define DEBUG true /*usb logging (debug mode)*/
 
-/*****************/
-/* CONFIGURATION */
-/*****************/
-//constants
-#define APP_EUI             "0102030405060708"                 /*app identifier (set in gateway conf)*/
-#define APP_KEY             "01020304050607080910111213141516" //app password   (set in gateway conf)
-#define SLEEP_INTERVAL_DRY  "00:00:02:00" /*deep sleep interval (dry weather)*/
-#define SLEEP_INTERVAL_RAIN "00:00:01:00" /*deep sleep interval when it is raining*/
-#define NUM_LOOPS_DRY       2             /*lectures seguides abans de dormir SLEEP_INTERVAL_DRY*/
-#define NUM_LOOPS_RAIN      3             /*lectures seguides abans de dormir SLEEP_INTERVAL_RAIN*/
+//CONSTANTS
+#define APP_EUI             "0102030405060708" /*id and pwd (gateway cfg)*/
+#define APP_KEY             "01020304050607080910111213141516"
+#define SLEEP_INTERVAL_DRY  "00:00:02:00" /*deep sleep when not raining*/
+#define SLEEP_INTERVAL_RAIN "00:00:01:00" /*deep sleep when it's raining*/
+#define NUM_LOOPS_DRY       2             /*loops before deep sleep (no rain)*/
+#define NUM_LOOPS_RAIN      3             /*loops before deep sleep (rain)*/
 #define MSG_LENGTH          200           /*max length json message in bytes*/
 #define PIN_MICROCOM        DIGITAL1      /*pin microcom (cso detection)*/
 #define PIN_T1              DIGITAL4      /*pin sensor temperatura 1*/
 #define PIN_T2              DIGITAL6      /*pin sensor temperatura 2*/
 #define PIN_T3              DIGITAL8      /*pin sensor temperatura 3*/
-#define MB_READINGS         10            /*maxbotix readings each loop and averaged*/
+#define MB_READINGS         10            /*maxbotix readings per loop */
 #define TIMEOUT             1000          /*ms maxbotix serial read timeout*/
-//variables
+
+//VARIABLES
 char           wasp_id[5];              /*waspmote id (4 chars)*/
-char           device_eui[17];          /*000000000000 + waspmote id (16 chars)*/
+char           device_eui[17];          /*000000000000+waspmote id (16 chars)*/
 bool           chargeState     = false; /*is battery charging?*/
 unsigned int   paquets_enviats = 0;     /*number of sent packets (tx)*/
 unsigned int   paquets_rebuts  = 0;     /*number of ackd packets (rx)*/
 bool           its_raining     = false; /*it is raining?*/
-unsigned short num_loops       = 0;     /*lectures que es faran abans de dormir*/
-unsigned short num_loop_actual = 0;     /*lectura actual abans de dormir*/
+unsigned short num_loops       = 0;     /*loops before sleep f(its_raining)*/
+unsigned short num_loop_actual = 0;     /*current loop before sleep*/
 int8_t         error           = -1;    //error variable
 
+//=============================================================================
+// setup() and loop()
+//=============================================================================
 void setup(){
   //get wasp id (2 first bytes in hexadecimal)
   Utils.readSerialID();
   snprintf(wasp_id, 10, "%.2x%.2x", _serial_id[0], _serial_id[1]);
 
-  //set device eui using wasp id
-  snprintf(device_eui, 17, "000000000000%.2x%.2x", _serial_id[0], _serial_id[1]);
+  //set device eui using wasp id (16 chars + '\0')
+  snprintf(device_eui,17,"000000000000%.2x%.2x",_serial_id[0],_serial_id[1]);
 
   //init USB, show waspmote id and device eui
   if(DEBUG){
@@ -116,7 +119,7 @@ void loop(){
   }
 
   //read DS1820 temperature (ºC)
-  if(DEBUG) USB.print(F("Reading temperature (ºC)... "));
+  if(DEBUG) USB.print(F("Reading temperature (celsius)... "));
   float temp1 = Utils.readTempDS1820(PIN_T1); if(DEBUG){ USB.print(  temp1); USB.print(", "); }
   float temp2 = Utils.readTempDS1820(PIN_T2); if(DEBUG){ USB.print(  temp2); USB.print(", "); }
   float temp3 = Utils.readTempDS1820(PIN_T3); if(DEBUG){ USB.println(temp3); }
@@ -218,6 +221,10 @@ void loop(){
   setup();
 }
 
+//=============================================================================
+// FUNCTIONS
+//=============================================================================
+
 //read maxbotix distance sensor
 unsigned short readSensorSerial() {
   char buf[5]; //reserva 5 bytes "R000\0"
@@ -288,6 +295,35 @@ void lorawan_setup(){
     }else{        USB.print(F("1. Switch LoRaWAN ON error = "));
                   USB.println(error, DEC);
     }
+  }
+
+  /*
+  The setDataRate() function allows the user to set the data rate to be used
+  for the next transmission.
+  The following encoding is used for Data Rate (DR):
+
+  Data Rate Configuration
+  Indicative physical bit rate [bits/s]
+  Maximum payload [bytes]
+  //----------------------------
+  0 | LoRa: SF12 / 125 kHz 250 | 51
+  1 | LoRa: SF11 / 125 kHz 440 | 51
+  2 | LoRa: SF10 / 125 kHz 980 | 51
+  3 | LoRa: SF9 / 125 kHz 1760 | 115 <-- default
+  4 | LoRa: SF8 / 125 kHz 3125 | 222
+  5 | LoRa: SF7 / 125 kHz 5470 | 222
+
+  Figure: Data rates table for the LoRaWAN EU, IN, ASIA-PAC / LATAM and JP / KR
+  modules
+  */
+  //1.1. set data rate
+  error = LoRaWAN.setDataRate(3); //3 means up to 115 bytes per payload
+  if(error==0) {
+    USB.print(F("1.1. Set Data Rate OK:"));
+    USB.println(LoRaWAN._dataRate, DEC);
+  }else{
+    USB.print(F("1.1. Data Rate error = "));
+    USB.println(error, DEC);
   }
 
   //2. set device EUI
@@ -429,7 +465,7 @@ void lorawan_send_message(char *message){
 //transform ascii string to hexadecimal string
 //for example: "hola" to "686f6c61"
 void convert_json_to_hexstring(char *message, char *hexstring){
-  //char  buffer1[] = "hola";   //ascii "hola"
+  //char  buffer1[] = "hola";   //ascii "hola" (test)
   uint8_t buffer2[MSG_LENGTH];  //bytes {0x68 0x6f 0x6c 61}
 
   //clear buffer hexstring
@@ -468,12 +504,24 @@ void convert_json_to_hexstring(char *message, char *hexstring){
     USB.println(strlen(hexstring));
     USB.println(hexstring);
   }
+
+  //modify data rate for big packets
+  if(strlen(hexstring)>115){
+    //data rate 3 => up to 115 bytes per payload
+    //data rate 4 => up to 222 bytes per payload
+    LoRaWAN.setDataRate(4);
+    //in lorawan_setup is changed back to 3
+  }
 }
 
-/*DEBUGGING UTILITIES*/
-//do nothing (to isolate errors)
+//=============================================================================
+// UTILS
+//=============================================================================
+
+//do nothing (for example: to isolate errors)
 void do_nothing(){
   USB.println("================");
   USB.println("doing nothing...");
+  USB.println("================");
   while(true){delay(10000);}
 }
