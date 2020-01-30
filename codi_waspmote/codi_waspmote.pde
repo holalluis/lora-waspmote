@@ -14,15 +14,16 @@
 //=============================================================================
 // CONFIGURATION
 //=============================================================================
+
 //DEBUG MODE (set to "false" if usb is not connected)
 #define DEBUG true /*usb logging (debug mode)*/
 
 //CONSTANTS
 #define APP_EUI             "0102030405060708" /*id and pwd (gateway cfg)*/
 #define APP_KEY             "01020304050607080910111213141516"
-#define SLEEP_INTERVAL_DRY  "00:00:02:00" /*deep sleep when not raining*/
-#define SLEEP_INTERVAL_RAIN "00:00:01:00" /*deep sleep when it's raining*/
-#define NUM_LOOPS_DRY       2             /*loops before deep sleep (no rain)*/
+#define SLEEP_INTERVAL_DRY  "00:00:10:00" /*deep sleep when not raining*/
+#define SLEEP_INTERVAL_RAIN "00:00:02:00" /*deep sleep when it's raining*/
+#define NUM_LOOPS_DRY       1             /*loops before deep sleep (no rain)*/
 #define NUM_LOOPS_RAIN      3             /*loops before deep sleep (rain)*/
 #define MSG_LENGTH          200           /*max length json message in bytes*/
 #define PIN_MICROCOM        DIGITAL1      /*pin microcom (cso detection)*/
