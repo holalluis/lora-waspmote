@@ -21,7 +21,7 @@
 //CONSTANTS
 #define APP_EUI             "0102030405060708" /*id and pwd (gateway cfg)*/
 #define APP_KEY             "01020304050607080910111213141516"
-#define SLEEP_INTERVAL_DRY  "00:00:10:00" /*deep sleep when not raining*/
+#define SLEEP_INTERVAL_DRY  "00:00:30:00" /*deep sleep when not raining*/
 #define SLEEP_INTERVAL_RAIN "00:00:02:00" /*deep sleep when it's raining*/
 #define NUM_LOOPS_DRY       1             /*loops before deep sleep (no rain)*/
 #define NUM_LOOPS_RAIN      3             /*loops before deep sleep (rain)*/
@@ -62,6 +62,10 @@ void setup(){
     USB.println(wasp_id);
     USB.print(F("device eui: "));
     USB.println(device_eui);
+    USB.print(F("sleep interval dry: "));
+    USB.println(SLEEP_INTERVAL_DRY);
+    USB.print(F("sleep interval rain: "));
+    USB.println(SLEEP_INTERVAL_RAIN);
   }
 
   //config microcom capacitiu detector cso overflows
@@ -144,9 +148,13 @@ void loop(){
   //read maxbotix distance sensor MB_READINGS times
   if(DEBUG) USB.println(F("Reading distance (cm)..."));
   unsigned short distances[MB_READINGS];
+
+  //initialize values for distances
+  for(int i=0;i<MB_READINGS;i++){distances[i]=0;}
+
+  //read distances from maxbotix sensor
   for(int i=0;i<MB_READINGS;i++){
-    distances[i]=0;
-    unsigned long timeout = millis();
+    unsigned long timeout=millis();
     while(distances[i]==0){
       if(millis()-timeout > TIMEOUT) break;
       distances[i] = readSensorSerial();
@@ -307,12 +315,12 @@ void lorawan_setup(){
   Indicative physical bit rate [bits/s]
   Maximum payload [bytes]
   //----------------------------
-  0 | LoRa: SF12 / 125 kHz 250 | 51
-  1 | LoRa: SF11 / 125 kHz 440 | 51
-  2 | LoRa: SF10 / 125 kHz 980 | 51
-  3 | LoRa: SF9 / 125 kHz 1760 | 115 <-- default
-  4 | LoRa: SF8 / 125 kHz 3125 | 222
-  5 | LoRa: SF7 / 125 kHz 5470 | 222
+  0 | LoRa: SF12 / 125 kHz  250 |  51 bytes
+  1 | LoRa: SF11 / 125 kHz  440 |  51 bytes
+  2 | LoRa: SF10 / 125 kHz  980 |  51 bytes
+  3 | LoRa: SF9  / 125 kHz 1760 | 115 bytes <-- default
+  4 | LoRa: SF8  / 125 kHz 3125 | 222 bytes
+  5 | LoRa: SF7  / 125 kHz 5470 | 222 bytes
 
   Figure: Data rates table for the LoRaWAN EU, IN, ASIA-PAC / LATAM and JP / KR
   modules
@@ -412,19 +420,19 @@ void lorawan_send_message(char *message){
     convert_json_to_hexstring(message, hexstring);
 
     //sendConfirmed(port, payload)
-    /*port: lorawan port to use in backend: from 1 to 223*/
+    //port: lorawan port to use in backend: from 1 to 223
+    if(DEBUG) USB.println(F("Sending LoRaWAN packet..."));
     error = LoRaWAN.sendConfirmed(3, hexstring);
-    /* Error messages in sendConfirmed(port, payload):
-       LORAWAN_ANSWER_OK      =  0
-       LORAWAN_ANSWER_ERROR   =  1  Module communication error
-       LORAWAN_NO_ANSWER      =  2  Module didn't response
-       LORAWAN_INIT_ERROR     =  3
-       LORAWAN_LENGTH_ERROR   =  4  Error with data length
-       LORAWAN_SENDING_ERROR  =  5  Sending error
-       LORAWAN_NOT_JOINED     =  6  Module hasn't joined a network
-       LORAWAN_INPUT_ERROR    =  7
-       LORAWAN_VERSION_ERROR  =  8
-    **/
+    //Error messages in sendConfirmed(port, payload):
+    //LORAWAN_ANSWER_OK      =  0
+    //LORAWAN_ANSWER_ERROR   =  1  Module communication error
+    //LORAWAN_NO_ANSWER      =  2  Module didn't response
+    //LORAWAN_INIT_ERROR     =  3
+    //LORAWAN_LENGTH_ERROR   =  4  Error with data length
+    //LORAWAN_SENDING_ERROR  =  5  Sending error
+    //LORAWAN_NOT_JOINED     =  6  Module hasn't joined a network
+    //LORAWAN_INPUT_ERROR    =  7
+    //LORAWAN_VERSION_ERROR  =  8
 
     //if ACK is received
     if(error==0) paquets_rebuts++;
