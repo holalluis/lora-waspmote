@@ -19,8 +19,8 @@
 #define DEBUG true /*usb logging (debug mode)*/
 
 //CONSTANTS
-#define APP_EUI             "0102030405060708" /*id and pwd (gateway cfg)*/
-#define APP_KEY             "01020304050607080910111213141516"
+#define NWK_SESSION_KEY     "11112222333344445555666677778888" //abp activation (lorawan)
+#define APP_SESSION_KEY     "11112222333344445555666677778888" //abp activation (lorawan)
 #define SLEEP_INTERVAL_DRY  "00:00:30:00" /*deep sleep when not raining*/
 #define SLEEP_INTERVAL_RAIN "00:00:02:00" /*deep sleep when it's raining*/
 #define NUM_LOOPS_DRY       1             /*loops before deep sleep (no rain)*/
@@ -36,6 +36,7 @@
 //VARIABLES
 char           wasp_id[5];              /*waspmote id (4 chars)*/
 char           device_eui[17];          /*000000000000+waspmote id (16 chars)*/
+char           device_adr[9];           /*0000+waspmote id (8 chars)*/
 bool           chargeState     = false; /*is battery charging?*/
 unsigned int   paquets_enviats = 0;     /*number of sent packets (tx)*/
 unsigned int   paquets_rebuts  = 0;     /*number of ackd packets (rx)*/
@@ -55,6 +56,9 @@ void setup(){
   //set device eui using wasp id (16 chars + '\0')
   snprintf(device_eui,17,"000000000000%.2x%.2x",_serial_id[0],_serial_id[1]);
 
+  //set device adr using wasp id (8 chars + '\0')
+  snprintf(device_adr,9,"0000%.2x%.2x",_serial_id[0],_serial_id[1]);
+
   //init USB, show waspmote id and device eui
   if(DEBUG){
     USB.ON();
@@ -62,6 +66,8 @@ void setup(){
     USB.println(wasp_id);
     USB.print(F("device eui: "));
     USB.println(device_eui);
+    USB.print(F("device adr: "));
+    USB.println(device_adr);
     USB.print(F("sleep interval dry: "));
     USB.println(SLEEP_INTERVAL_DRY);
     USB.print(F("sleep interval rain: "));
@@ -212,11 +218,20 @@ void loop(){
     //reset num loop actual
     num_loop_actual = 0;
 
-    //start deep sleeping
+    //deep sleep
+    /*
+    */
     PWR.deepSleep(
-      its_raining ? SLEEP_INTERVAL_RAIN : SLEEP_INTERVAL_DRY,
+      (its_raining ? SLEEP_INTERVAL_RAIN : SLEEP_INTERVAL_DRY),
       RTC_OFFSET, RTC_ALM1_MODE1, ALL_OFF
     );
+    //hibernate
+    /*
+    PWR.hibernate(
+      (its_raining ? SLEEP_INTERVAL_RAIN : SLEEP_INTERVAL_DRY),
+      RTC_OFFSET, RTC_ALM1_MODE2
+    );
+    */
 
     //end deep sleep
     if(DEBUG){
@@ -335,7 +350,7 @@ void lorawan_setup(){
     USB.println(error, DEC);
   }
 
-  //2. set device EUI
+  //2. set device EUI (ABP and OTAA)
   error = LoRaWAN.setDeviceEUI(device_eui);
   if(DEBUG){
     if(error==0){ USB.println(F("2. Device EUI set OK"));
@@ -344,7 +359,35 @@ void lorawan_setup(){
     }
   }
 
-  //3. Set Application EUI
+  //2. set device ADR (ABP)
+  error = LoRaWAN.setDeviceAddr(device_adr);
+  if(DEBUG){
+    if(error==0){ USB.println(F("2. Device ADR set OK"));
+    }else{        USB.print(F("2. Device ADR set error = "));
+                  USB.println(error, DEC);
+    }
+  }
+
+  //2. set network session key (ABP)
+  error = LoRaWAN.setAppSessionKey(APP_SESSION_KEY);
+  if(DEBUG){
+    if(error==0){ USB.println(F("2. APP Session Key set OK"));
+    }else{        USB.print(F("2. APP Session Key set error = "));
+                  USB.println(error, DEC);
+    }
+  }
+
+  //2. set network session key (ABP)
+  error = LoRaWAN.setNwkSessionKey(NWK_SESSION_KEY);
+  if(DEBUG){
+    if(error==0){ USB.println(F("2. NWK Session Key set OK"));
+    }else{        USB.print(F("2. NWK Session Key set error = "));
+                  USB.println(error, DEC);
+    }
+  }
+
+  //3. Set Application EUI (OTAA)
+  /*
   error = LoRaWAN.setAppEUI(APP_EUI);
   if(DEBUG){
     if(error==0){ USB.println(F("3. Application EUI set OK"));
@@ -352,8 +395,10 @@ void lorawan_setup(){
                   USB.println(error, DEC);
     }
   }
+  */
 
-  //4. Set Application Session Key
+  //4. Set Application Session Key (OTAA)
+  /*
   error = LoRaWAN.setAppKey(APP_KEY);
   if(DEBUG){
     if(error==0){ USB.println(F("4. Application Key set OK"));
@@ -361,15 +406,18 @@ void lorawan_setup(){
                   USB.println(error, DEC);
     }
   }
+  */
 
   //5. Join OTAA to negotiate keys with the server
+  /*
   error = LoRaWAN.joinOTAA();
   if(DEBUG){
-    if(error==0){ USB.println(F("5. Join network OK"));
-    }else{        USB.print(F("5. Join network error = "));
+    if(error==0){ USB.println(F("5. Join network OTAA OK"));
+    }else{        USB.print(F("5. Join network OTAA error = "));
                   USB.println(error, DEC);
     }
   }
+  */
 
   //6. Save configuration
   error = LoRaWAN.saveConfig();
@@ -414,7 +462,7 @@ void lorawan_send_message(char *message){
   //2. join network
   error = LoRaWAN.joinABP();
   if(error==0) {
-    if(DEBUG) USB.println(F("Join network OK"));
+    if(DEBUG) USB.println(F("Join network ABP OK"));
 
     char hexstring[MSG_LENGTH];
     convert_json_to_hexstring(message, hexstring);
@@ -454,7 +502,7 @@ void lorawan_send_message(char *message){
   }else{
     if(DEBUG){
       //show error joining network via ABP
-      USB.print(F("Join network error = "));
+      USB.print(F("Join network ABP error = "));
       USB.println(error, DEC);
     }
   }
